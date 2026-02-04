@@ -19,62 +19,77 @@ async function main() {
   const { owner, repo, number, showAll, only, includeDone, withResolved } = parseCliArgs();
   debug(`Fetching PR ${owner}/${repo}#${number}`);
   debug(`Options: showAll=${showAll}, includeDone=${includeDone}, withResolved=${withResolved}, only=${only.join(',') || 'all'}`);
-  
+
   const filter = (key: string) => only.length === 0 || only.includes(key);
   const statePath = getStatePath(owner, repo, number);
   const state = loadState(statePath);
   debug(`State loaded from ${statePath}`);
 
-  // 1. Fetch review threads
-  debug('Fetching review threads...');
-  let t1 = Date.now();
-  const allThreads: Thread[] = await fetchAllPages(
-    owner,
-    repo,
-    number,
-    THREADS_QUERY,
-    pr => pr.reviewThreads.nodes,
-    pr => pr.reviewThreads.pageInfo
-  );
-  debugTiming(`Threads fetched: ${allThreads.length} threads in ${Date.now() - t1}ms`);
+  // Parallel fetch of initial data (1-4)
+  debug('Fetching PR data in parallel: threads, files, reviews, comments...');
+  const parallelStartTime = Date.now();
 
-  // 2. Fetch files
-  debug('Fetching files...');
-  t1 = Date.now();
-  const allFiles = filter('files')
-    ? await fetchAllPages(owner, repo, number, FILES_QUERY, pr => pr.files.nodes, pr => pr.files.pageInfo)
-    : [];
-  debugTiming(`Files fetched: ${allFiles.length} files in ${Date.now() - t1}ms`);
+  const [allThreads, allFiles, allReviews, allComments] = await Promise.all([
+    // 1. Fetch review threads
+    (async () => {
+      let t1 = Date.now();
+      const threads = await fetchAllPages(
+        owner,
+        repo,
+        number,
+        THREADS_QUERY,
+        pr => pr.reviewThreads.nodes,
+        pr => pr.reviewThreads.pageInfo
+      );
+      debugTiming(`Threads fetched: ${threads.length} threads in ${Date.now() - t1}ms`);
+      return threads;
+    })(),
 
-  // 3. Fetch reviews
-  debug('Fetching reviews...');
-  t1 = Date.now();
-  const allReviews = await fetchAllPages(
-    owner,
-    repo,
-    number,
-    REVIEWS_QUERY,
-    pr => pr.reviews.nodes,
-    pr => pr.reviews.pageInfo
-  );
-  debugTiming(`Reviews fetched: ${allReviews.length} reviews in ${Date.now() - t1}ms`);
+    // 2. Fetch files
+    (async () => {
+      if (!filter('files')) return [];
+      let t1 = Date.now();
+      const files = await fetchAllPages(owner, repo, number, FILES_QUERY, pr => pr.files.nodes, pr => pr.files.pageInfo);
+      debugTiming(`Files fetched: ${files.length} files in ${Date.now() - t1}ms`);
+      return files;
+    })(),
 
-  // 4. Fetch general comments
-  debug('Fetching general comments...');
-  t1 = Date.now();
-  const allComments = await fetchAllPages(
-    owner,
-    repo,
-    number,
-    COMMENTS_QUERY,
-    pr => pr.comments.nodes,
-    pr => pr.comments.pageInfo
-  );
-  debugTiming(`Comments fetched: ${allComments.length} comments in ${Date.now() - t1}ms`);
+    // 3. Fetch reviews
+    (async () => {
+      let t1 = Date.now();
+      const reviews = await fetchAllPages(
+        owner,
+        repo,
+        number,
+        REVIEWS_QUERY,
+        pr => pr.reviews.nodes,
+        pr => pr.reviews.pageInfo
+      );
+      debugTiming(`Reviews fetched: ${reviews.length} reviews in ${Date.now() - t1}ms`);
+      return reviews;
+    })(),
+
+    // 4. Fetch general comments
+    (async () => {
+      let t1 = Date.now();
+      const comments = await fetchAllPages(
+        owner,
+        repo,
+        number,
+        COMMENTS_QUERY,
+        pr => pr.comments.nodes,
+        pr => pr.comments.pageInfo
+      );
+      debugTiming(`Comments fetched: ${comments.length} comments in ${Date.now() - t1}ms`);
+      return comments;
+    })()
+  ]);
+
+  debugTiming(`All parallel fetches completed in ${Date.now() - parallelStartTime}ms`);
 
   // 5. Get PR Meta
   debug('Fetching PR metadata...');
-  t1 = Date.now();
+  let t1 = Date.now();
   const metaResult = runGh([
     'api',
     'graphql',
@@ -84,7 +99,7 @@ async function main() {
     `-f query='${META_QUERY}'`
   ]);
   debugTiming(`PR metadata fetched in ${Date.now() - t1}ms`);
-  
+
   const pr = metaResult.data.repository.pullRequest;
   const prMeta = { ...pr, author: pr.author.login, files: allFiles };
 
@@ -133,7 +148,7 @@ async function main() {
     const bots = ['coderabbitai', 'github-actions', 'sonarqubecloud'];
     const candidates = [...allComments, ...allReviews].filter(c => bots.includes(c.author?.login));
     debug(`Found ${candidates.length} bot comments`);
-    
+
     let totalNitpicks = 0;
     for (const c of candidates) {
       let nitpicks = parseNitpicks(c.body);
@@ -164,7 +179,7 @@ async function main() {
         resolvedSkipped++;
         continue;
       }
-      
+
       const comments = await fetchAllThreadComments(owner, repo, number, t);
       for (const c of comments) {
         if (!bots.includes(c.author?.login)) {
@@ -188,11 +203,11 @@ async function main() {
   }
 
   const output = formatOutput(prMeta, statePath, processedThreads, botSummaries, userComments, allThreads, filter);
-  
+
   const totalTime = Date.now() - startTime;
   debugTiming(`Total execution time: ${totalTime}ms`);
   debug('Output ready');
-  
+
   console.log(JSON.stringify(output, null, 2));
 }
 
