@@ -1,6 +1,6 @@
-# pr-comment-fetcher
+# gh-pr-threads
 
-CLI tool to fetch and filter GitHub Pull Request comments.
+CLI tool to fetch and filter GitHub Pull Request review threads, comments, and nitpicks.
 
 ## Features
 
@@ -11,17 +11,37 @@ CLI tool to fetch and filter GitHub Pull Request comments.
 - 🎯 Flexible filtering by data types
 - 📊 Detailed PR statistics
 
+## Prerequisites
+
+Before using `gh-pr-threads`, ensure you have:
+
+1. **GitHub CLI (`gh`)** installed and authenticated:
+   ```bash
+   # Install gh (macOS with Homebrew)
+   brew install gh
+   
+   # Or download from https://github.com/cli/cli#installation
+   
+   # Authenticate with GitHub
+   gh auth login
+   
+   # Verify authentication
+   gh auth status
+   ```
+
+2. **Node.js >= 18**
+
 ## Installation
 
 ```bash
-npx pr-comment-fetcher <PR_URL>
+npx gh-pr-threads <PR_URL>
 ```
 
 Or globally:
 
 ```bash
-npm install -g pr-comment-fetcher
-pr-comment-fetcher <PR_URL>
+npm install -g gh-pr-threads
+gh-pr-threads <PR_URL>
 ```
 
 ## Usage
@@ -30,35 +50,35 @@ pr-comment-fetcher <PR_URL>
 
 ```bash
 # From PR URL
-npx pr-comment-fetcher https://github.com/owner/repo/pull/123
+npx gh-pr-threads https://github.com/owner/repo/pull/123
 
 # Auto-detect PR in current directory
 cd your-repo
-npx pr-comment-fetcher
+npx gh-pr-threads
 ```
 
 ### Options
 
 ```bash
 # Show all threads (including resolved)
-npx pr-comment-fetcher <PR_URL> --all
+npx gh-pr-threads <PR_URL> --all
 
 # Include threads/nitpicks marked as done/skip
-npx pr-comment-fetcher <PR_URL> --include-done
+npx gh-pr-threads <PR_URL> --include-done
 
 # Get only specific data types
-npx pr-comment-fetcher <PR_URL> --only=threads,nitpicks
-npx pr-comment-fetcher <PR_URL> --only=userComments
-npx pr-comment-fetcher <PR_URL> --only=summaries,files
+npx gh-pr-threads <PR_URL> --only=threads,nitpicks
+npx gh-pr-threads <PR_URL> --only=userComments
+npx gh-pr-threads <PR_URL> --only=summaries,files
 
 # Combine options
-npx pr-comment-fetcher <PR_URL> --all --include-done --only=threads
+npx gh-pr-threads <PR_URL> --all --include-done --only=threads
 ```
 
 ### Manual PR Specification
 
 ```bash
-npx pr-comment-fetcher --owner=superprotocol --repo=sp-swarm-services --number=35
+npx gh-pr-threads --owner=owner --repo=repo-name --number=123
 ```
 
 ## Data Types (--only)
@@ -112,8 +132,8 @@ This allows marking threads and nitpicks as completed and filtering them on subs
 
 ## Requirements
 
-- Node.js >= 18
-- GitHub CLI (`gh`) installed and authenticated
+- **Node.js >= 18**
+- **GitHub CLI (`gh`)** - See Prerequisites section above for installation and authentication
 
 ## Development
 
@@ -157,10 +177,10 @@ npm publish
 npm link
 
 # Command is now available globally
-pr-comment-fetcher --help
+gh-pr-threads --help
 
 # To unlink
-npm unlink -g pr-comment-fetcher
+npm unlink -g gh-pr-threads
 ```
 
 ## License
