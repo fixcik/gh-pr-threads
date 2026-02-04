@@ -12,7 +12,10 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "publish:patch": "npm version patch && npm publish && git push origin master && git push origin --tags",
+    "publish:minor": "npm version minor && npm publish && git push origin master && git push origin --tags",
+    "publish:major": "npm version major && npm publish && git push origin master && git push origin --tags"
   },
   "dependencies": {
     "commander": "^12.0.0"
