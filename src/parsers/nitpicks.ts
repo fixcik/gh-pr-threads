@@ -8,53 +8,78 @@ export function getNitpickId(filePath: string, line: string, content: string): s
   return crypto.createHash('sha1').update(content).digest('hex').substring(0, 8);
 }
 
+interface DetailsBlock {
+  full: string;
+  content: string;
+  summary: string;
+}
+
+/**
+ * Finds the end position of a balanced <details> tag accounting for nesting
+ */
+function findBalancedDetailsEnd(body: string, startPos: number, startLength: number): number {
+  let depth = 1;
+  let currentPos = startPos + startLength;
+
+  while (depth > 0 && currentPos < body.length) {
+    const nextOpen = body.indexOf('<details', currentPos);
+    const nextClose = body.indexOf('</details>', currentPos);
+
+    if (nextClose === -1) break;
+
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth++;
+      currentPos = nextOpen + 8;
+    } else {
+      depth--;
+      currentPos = nextClose + 10;
+    }
+  }
+
+  return depth === 0 ? currentPos : -1;
+}
+
+/**
+ * Extracts summary and content from a details block
+ */
+function extractDetailsBlock(fullBlock: string): { summary: string; content: string } {
+  const summaryMatch = fullBlock.match(/<summary>([\s\S]*?)<\/summary>/);
+  const summary = summaryMatch ? summaryMatch[1] : '';
+
+  const summaryEndTag = '</summary>';
+  const summaryEndIndex = fullBlock.indexOf(summaryEndTag);
+  const content =
+    summaryEndIndex !== -1
+      ? fullBlock.substring(summaryEndIndex + summaryEndTag.length, fullBlock.length - 10).trim()
+      : '';
+
+  return { summary, content };
+}
+
 export function findBalancedDetails(
   body: string,
   summaryFilter?: RegExp
-): { full: string; content: string; summary: string }[] {
-  const results: { full: string; content: string; summary: string }[] = [];
+): DetailsBlock[] {
+  const results: DetailsBlock[] = [];
   const detailsStartRegex = /<details[\s>]/g;
   let match;
 
   while ((match = detailsStartRegex.exec(body)) !== null) {
     const startPos = match.index;
-    let depth = 1;
-    let currentPos = match.index + match[0].length;
+    const endPos = findBalancedDetailsEnd(body, startPos, match[0].length);
 
-    while (depth > 0 && currentPos < body.length) {
-      const nextOpen = body.indexOf('<details', currentPos);
-      const nextClose = body.indexOf('</details>', currentPos);
-
-      if (nextClose === -1) break;
-
-      if (nextOpen !== -1 && nextOpen < nextClose) {
-        depth++;
-        currentPos = nextOpen + 8;
-      } else {
-        depth--;
-        currentPos = nextClose + 10;
-      }
-    }
-
-    if (depth === 0) {
-      const fullBlock = body.substring(startPos, currentPos);
-      const summaryMatch = fullBlock.match(/<summary>([\s\S]*?)<\/summary>/);
-      const summary = summaryMatch ? summaryMatch[1] : '';
+    if (endPos !== -1) {
+      const fullBlock = body.substring(startPos, endPos);
+      const { summary, content } = extractDetailsBlock(fullBlock);
 
       if (!summaryFilter || summaryFilter.test(summary)) {
-        const summaryEndTag = '</summary>';
-        const summaryEndIndex = fullBlock.indexOf(summaryEndTag);
-        const content =
-          summaryEndIndex !== -1
-            ? fullBlock.substring(summaryEndIndex + summaryEndTag.length, fullBlock.length - 10).trim()
-            : '';
-
         results.push({ full: fullBlock, content, summary });
       }
 
-      detailsStartRegex.lastIndex = currentPos;
+      detailsStartRegex.lastIndex = endPos;
     }
   }
+
   return results;
 }
 

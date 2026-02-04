@@ -22,10 +22,6 @@ export interface GraphQLResponse<T = unknown> {
   errors?: GraphQLError[];
 }
 
-export interface ResolvedGraphQLResponse<T> {
-  data: T;
-}
-
 // Repository Pull Request response structure (wrapped in data)
 export interface PRData {
   data: {

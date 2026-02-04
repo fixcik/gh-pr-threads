@@ -26,12 +26,3 @@ export const RESOLVE_MUTATION = `
   }
 `;
 
-export const UNRESOLVE_MUTATION = `
-  mutation($threadId: ID!) {
-    unresolveReviewThread(input: { threadId: $threadId }) {
-      thread {
-        isResolved
-      }
-    }
-  }
-`;

@@ -79,7 +79,7 @@ describe('detectPR', () => {
     });
 
     expect(() => detectPR()).toThrow(
-      'Could not detect PR. Make sure you are in a git repository with an open PR.'
+      'Could not detect PR. Please provide a PR URL or use --owner, --repo, --number options.'
     );
   });
 
@@ -89,7 +89,7 @@ describe('detectPR', () => {
     });
 
     expect(() => detectPR()).toThrow(
-      'Could not detect PR. Make sure you are in a git repository with an open PR.'
+      'Could not detect PR. Please provide a PR URL or use --owner, --repo, --number options.'
     );
   });
 
