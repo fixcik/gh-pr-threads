@@ -1,0 +1,49 @@
+{
+  "name": "gh-pr-threads",
+  "version": "0.1.0",
+  "description": "Fetch and filter GitHub PR review threads, comments, and nitpicks",
+  "type": "module",
+  "bin": {
+    "gh-pr-threads": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "github",
+    "pull-request",
+    "pr",
+    "comments",
+    "review",
+    "cli",
+    "coderabbit",
+    "gh",
+    "github-cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fixcik/pr-comment-fetcher.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fixcik/pr-comment-fetcher/issues"
+  },
+  "homepage": "https://github.com/fixcik/pr-comment-fetcher#readme"
+}
