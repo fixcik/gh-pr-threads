@@ -6,8 +6,8 @@ export function parseCliArgs(): Args {
   const program = new Command();
 
   program
-    .name('pr-comment-fetcher')
-    .description('CLI tool to fetch and filter GitHub PR comments')
+    .name('gh-pr-threads')
+    .description('Fetch and filter GitHub PR review threads, comments, and nitpicks')
     .version('1.0.0')
     .argument('[url]', 'GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)')
     .option('--owner <owner>', 'Repository owner')
@@ -45,7 +45,7 @@ export function parseCliArgs(): Args {
       number = prInfo.number;
     } catch (e) {
       console.error('Error: Could not detect PR. Please provide a PR URL or use --owner, --repo, --number options.');
-      console.error('Usage: pr-comment-fetcher <PR_URL> [--all] [--include-done] [--only=threads,nitpicks,files,summaries,userComments]');
+      console.error('Usage: gh-pr-threads <PR_URL> [--all] [--include-done] [--only=threads,nitpicks,files,summaries,userComments]');
       process.exit(1);
     }
   }
