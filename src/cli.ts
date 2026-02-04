@@ -16,6 +16,7 @@ export function parseCliArgs(): Args {
     .option('--all', 'Show all threads including resolved ones', false)
     .option('--include-done', 'Include threads/nitpicks marked as done or skip', false)
     .option('--only <types>', 'Comma-separated list: threads,nitpicks,files,summaries,userComments')
+    .option('--with-resolved', 'Include resolved threads/comments (default: only unresolved)', false)
     .parse();
 
   const options = program.opts();
@@ -58,6 +59,7 @@ export function parseCliArgs(): Args {
     number,
     showAll: options.all,
     only,
-    includeDone: options.includeDone
+    includeDone: options.includeDone,
+    withResolved: options.withResolved
   };
 }

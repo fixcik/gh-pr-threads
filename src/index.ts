@@ -11,7 +11,7 @@ import { formatOutput } from './output/formatter.js';
 import type { Thread, ProcessedThread, BotSummary, UserComment } from './types.js';
 
 async function main() {
-  const { owner, repo, number, showAll, only, includeDone } = parseCliArgs();
+  const { owner, repo, number, showAll, only, includeDone, withResolved } = parseCliArgs();
   const filter = (key: string) => only.length === 0 || only.includes(key);
   const statePath = getStatePath(owner, repo, number);
   const state = loadState(statePath);
@@ -114,6 +114,9 @@ async function main() {
   if (filter('userComments')) {
     const bots = ['coderabbitai', 'github-actions', 'sonarqubecloud', 'dependabot'];
     for (const t of allThreads) {
+      // Filter resolved threads unless --with-resolved is set
+      if (!withResolved && t.isResolved) continue;
+      
       const comments = await fetchAllThreadComments(owner, repo, number, t);
       for (const c of comments) {
         if (!bots.includes(c.author?.login)) {

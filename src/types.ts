@@ -100,6 +100,7 @@ export interface Args {
   showAll: boolean;
   only: string[];
   includeDone: boolean;
+  withResolved: boolean;
 }
 
 export interface Nitpick {

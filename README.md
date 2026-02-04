@@ -60,7 +60,13 @@ npx gh-pr-threads
 ### Options
 
 ```bash
-# Show all threads (including resolved)
+# Show only unresolved items (default)
+npx gh-pr-threads <PR_URL> --only=userComments
+
+# Include resolved threads/comments
+npx gh-pr-threads <PR_URL> --only=userComments --with-resolved
+
+# Show all threads (including resolved review threads)
 npx gh-pr-threads <PR_URL> --all
 
 # Include threads/nitpicks marked as done/skip
@@ -68,11 +74,10 @@ npx gh-pr-threads <PR_URL> --include-done
 
 # Get only specific data types
 npx gh-pr-threads <PR_URL> --only=threads,nitpicks
-npx gh-pr-threads <PR_URL> --only=userComments
 npx gh-pr-threads <PR_URL> --only=summaries,files
 
 # Combine options
-npx gh-pr-threads <PR_URL> --all --include-done --only=threads
+npx gh-pr-threads <PR_URL> --all --include-done --with-resolved --only=threads,userComments
 ```
 
 ### Manual PR Specification
@@ -81,13 +86,22 @@ npx gh-pr-threads <PR_URL> --all --include-done --only=threads
 npx gh-pr-threads --owner=owner --repo=repo-name --number=123
 ```
 
-## Data Types (--only)
+## Filtering Options
+
+### Data Types (--only)
 
 - `threads` - Review threads with comments
 - `nitpicks` - Nitpicks from CodeRabbit
 - `summaries` - Full summaries from bots
 - `files` - List of changed files
 - `userComments` - Only comments from real users
+
+### Resolved Status
+
+- **Default**: Only unresolved items are returned
+- `--with-resolved` - Include resolved threads and comments
+- `--all` - Show all review threads (resolved and unresolved)
+- `--include-done` - Include items marked as done or skip in state
 
 ## Output Format
 
