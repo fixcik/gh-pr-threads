@@ -1,80 +1,83 @@
 # Quick Start
 
-## Использование (после публикации)
+## Usage (after publishing)
 
 ```bash
-npx pr-comment-fetcher https://github.com/owner/repo/pull/123
+npx gh-pr-threads https://github.com/owner/repo/pull/123
 ```
 
-## Локальное тестирование (прямо сейчас)
+## Local Testing (right now)
 
 ```bash
-# Из любой директории с git репозиторием и открытым PR
-~/projects/ai/pr-comment-fetcher/dist/index.js --only=userComments
+# From any directory with a git repository and open PR
+~/projects/ai/gh-pr-threads/dist/index.js --only=userComments
 
-# Или с URL
-~/projects/ai/pr-comment-fetcher/dist/index.js https://github.com/owner/repo/pull/123
+# Or with URL
+~/projects/ai/gh-pr-threads/dist/index.js https://github.com/owner/repo/pull/123
 ```
 
-## Установка для разработки
+## Development Setup
 
 ```bash
-cd ~/projects/ai/pr-comment-fetcher
+cd ~/projects/ai/gh-pr-threads
 npm install
 npm run build
 ```
 
-## Быстрый тест
+## Quick Test
 
 ```bash
-# Запустить верификацию
+# Run verification
 ./verify.sh
 
-# Показать help
+# Show help
 node dist/index.js --help
 
-# Получить версию
+# Get version
 node dist/index.js --version
 ```
 
-## Публикация в NPM
+## Publishing to NPM
 
 ```bash
-# 1. Убедитесь что всё работает
+# 1. Make sure everything works
 ./verify.sh
 
-# 2. Обновите package.json (repository URLs)
+# 2. Update package.json (repository URLs)
 
-# 3. Создайте git репозиторий
+# 3. Create git repository
 git init
 git add .
 git commit -m "Initial release v1.0.0"
 
-# 4. Опубликуйте
+# 4. Publish
 npm login
 npm publish
 
-# 5. Используйте
-npx pr-comment-fetcher --help
+# 5. Use it
+npx gh-pr-threads --help
 ```
 
-## Примеры использования
+## Usage Examples
 
 ```bash
-# Только комментарии пользователей
-pr-comment-fetcher <PR_URL> --only=userComments
+# Only user comments
+gh-pr-threads <PR_URL> --only=userComments
 
-# Только nitpicks от CodeRabbit
-pr-comment-fetcher <PR_URL> --only=nitpicks
+# Only CodeRabbit nitpicks
+gh-pr-threads <PR_URL> --only=nitpicks
 
-# Все треды включая resolved
-pr-comment-fetcher <PR_URL> --only=threads --all
+# All threads including resolved
+gh-pr-threads <PR_URL> --only=threads --all
 
-# Показать статистику
-pr-comment-fetcher <PR_URL> | jq '.summary'
+# Show statistics
+gh-pr-threads <PR_URL> | jq '.summary'
+
+# Clear state and start fresh
+gh-pr-threads clear <PR_URL>
 ```
 
-Подробнее смотрите в:
-- **README.md** - полная документация
-- **EXAMPLES.md** - больше примеров с jq
-- **PROJECT_SUMMARY.md** - детали реализации
+For more details, see:
+- **README.md** - full documentation
+- **EXAMPLES.md** - more examples with jq
+- **PROJECT_SUMMARY.md** - implementation details

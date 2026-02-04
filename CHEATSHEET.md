@@ -1,96 +1,102 @@
-# pr-comment-fetcher - Шпаргалка
+# gh-pr-threads - Cheat Sheet
 
-## Установка и запуск
+## Installation and Setup
 
 ```bash
-# После публикации
-npx pr-comment-fetcher <PR_URL>
+# After publishing
+npx gh-pr-threads <PR_URL>
 
-# Локально (прямо сейчас)
-~/projects/ai/pr-comment-fetcher/dist/index.js <PR_URL>
+# Locally (right now)
+~/projects/ai/gh-pr-threads/dist/index.js <PR_URL>
 
-# npm link для глобального использования
-cd ~/projects/ai/pr-comment-fetcher
+# Use npm link for global access
+cd ~/projects/ai/gh-pr-threads
 npm link
-pr-comment-fetcher <PR_URL>
+gh-pr-threads <PR_URL>
 ```
 
-## Основные команды
+## Basic Commands
 
 ```bash
 # Help
-pr-comment-fetcher --help
+gh-pr-threads --help
 
-# Версия
-pr-comment-fetcher --version
+# Version
+gh-pr-threads --version
 
-# Автоопределение PR (в git repo)
-pr-comment-fetcher
+# Auto-detect PR (in git repo)
+gh-pr-threads
 
-# С конкретным URL
-pr-comment-fetcher https://github.com/owner/repo/pull/123
+# With specific URL
+gh-pr-threads https://github.com/owner/repo/pull/123
+
+# Clear state (reset done/skip marks)
+gh-pr-threads clear
+
+# Clear state for specific PR
+gh-pr-threads clear https://github.com/owner/repo/pull/123
 ```
 
-## Фильтры (--only)
+## Filters (--only)
 
 ```bash
 --only=threads        # Review threads
---only=nitpicks       # Nitpicks от CodeRabbit
+--only=nitpicks       # CodeRabbit nitpicks
 --only=summaries      # Bot summaries
---only=files          # Изменённые файлы
---only=userComments   # Комментарии пользователей
+--only=files          # Changed files
+--only=userComments   # User comments only
 
-# Комбинация
+# Combine multiple
 --only=threads,nitpicks,files
 ```
 
-## Опции
+## Options
 
 ```bash
---all              # Включить resolved threads
---include-done     # Включить done/skip статусы
+--all              # Include resolved threads
+--include-done     # Include done/skip statuses
 ```
 
-## Частые сценарии
+## Common Scenarios
 
 ```bash
-# 1. Все нерешённые комментарии
-pr-comment-fetcher <URL> --only=threads
+# 1. All unresolved comments
+gh-pr-threads <URL> --only=threads
 
-# 2. Только комментарии от людей (не ботов)
-pr-comment-fetcher <URL> --only=userComments
+# 2. Only human comments (no bots)
+gh-pr-threads <URL> --only=userComments
 
-# 3. Все nitpicks от CodeRabbit
-pr-comment-fetcher <URL> --only=nitpicks
+# 3. All CodeRabbit nitpicks
+gh-pr-threads <URL> --only=nitpicks
 
-# 4. Полная информация
-pr-comment-fetcher <URL>
+# 4. Full information
+gh-pr-threads <URL>
 
-# 5. Включая обработанные
-pr-comment-fetcher <URL> --include-done
+# 5. Including processed items
+gh-pr-threads <URL> --include-done
 ```
 
-## Обработка с jq
+## Processing with jq
 
 ```bash
-# Только summary
-pr-comment-fetcher <URL> | jq '.summary'
+# Summary only
+gh-pr-threads <URL> | jq '.summary'
 
-# Количество комментариев по авторам
-pr-comment-fetcher <URL> --only=userComments | jq '.summary.userCommentsByAuthor'
+# Comment counts by author
+gh-pr-threads <URL> --only=userComments | jq '.summary.userCommentsByAuthor'
 
-# Список нерешённых файлов
-pr-comment-fetcher <URL> --only=threads | \
+# List unresolved files
+gh-pr-threads <URL> --only=threads | \
   jq -r '.threads[] | select(.isResolved == false) | .path' | sort -u
 
-# Все nitpicks для файла
-pr-comment-fetcher <URL> --only=nitpicks | \
+# All nitpicks for a file
+gh-pr-threads <URL> --only=nitpicks | \
   jq '.botSummaries[].nitpicks[] | select(.path == "src/index.ts")'
 ```
 
-## Состояние
+## State
 
-Файл: `~/.cursor/reviews/{owner}-{repo}-{number}/pr-state.json`
+File: `~/.cursor/reviews/{owner}-{repo}-{number}/pr-state.json`
 
 ```json
 {
@@ -103,43 +109,43 @@ pr-comment-fetcher <URL> --only=nitpicks | \
 }
 ```
 
-Статусы: `done`, `skip`, или отсутствует
+Statuses: `done`, `skip`, or not present
 
-## Разработка
+## Development
 
 ```bash
-# Установка
+# Install dependencies
 npm install
 
-# Dev режим
+# Dev mode
 npm run dev -- <PR_URL> [options]
 
-# Сборка
+# Build
 npm run build
 
-# Верификация
+# Verification
 ./verify.sh
 
-# Публикация
+# Publish
 npm publish
 ```
 
-## Файлы проекта
+## Project Files
 
 ```
-README.md          - Полная документация
-QUICKSTART.md      - Быстрый старт
-EXAMPLES.md        - Примеры использования
-CHEATSHEET.md      - Эта шпаргалка
-PROJECT_SUMMARY.md - Детали реализации
-CHANGELOG.md       - История версий
-CONTRIBUTING.md    - Для контрибьюторов
+README.md          - Full documentation
+QUICKSTART.md      - Quick start guide
+EXAMPLES.md        - Usage examples
+CHEATSHEET.md      - This cheat sheet
+PROJECT_SUMMARY.md - Implementation details
+CHANGELOG.md       - Version history
+CONTRIBUTING.md    - For contributors
 ```
 
 ## Tips
 
-💡 Используйте `--only` для ускорения (меньше GraphQL запросов)
-💡 Состояние сохраняется автоматически
-💡 `--include-done` покажет что уже обработано
-💡 jq - ваш друг для обработки JSON
-💡 Можно запускать без аргументов в git repo с PR
+💡 Use `--only` for speed (fewer GraphQL requests)
+💡 State is saved automatically
+💡 `--include-done` shows already processed items
+💡 jq is your friend for JSON processing
+💡 Can run without arguments in git repo with PR

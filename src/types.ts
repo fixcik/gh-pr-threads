@@ -3,6 +3,7 @@ export interface State {
   updatedAt: string;
   threads: Record<string, { status: string; note?: string }>;
   nitpicks: Record<string, { status: string; note?: string }>;
+  idMap: Record<string, string>;
 }
 
 export interface ThreadComment {
@@ -101,6 +102,7 @@ export interface Args {
   only: string[];
   includeDone: boolean;
   withResolved: boolean;
+  format: 'plain' | 'json';
 }
 
 export interface Nitpick {

@@ -1,14 +1,14 @@
-# Project Summary: pr-comment-fetcher
+# Project Summary: gh-pr-threads
 
 ## Status: ✅ Complete
 
-NPM package `pr-comment-fetcher` has been successfully created and is fully functional.
+NPM package `gh-pr-threads` has been successfully created and is fully functional.
 
 ## What's Implemented
 
 ### 1. Project Structure
 ```
-pr-comment-fetcher/
+gh-pr-threads/
 ├── src/
 │   ├── index.ts              # CLI entry point (#!/usr/bin/env node)
 │   ├── cli.ts                # Argument parsing (commander)
@@ -38,8 +38,8 @@ pr-comment-fetcher/
 ### 2. Functionality
 
 ✅ **CLI Interface**
-- PR URL support: `pr-comment-fetcher https://github.com/owner/repo/pull/123`
-- Auto-detect PR: `pr-comment-fetcher` (in git repository)
+- PR URL support: `gh-pr-threads https://github.com/owner/repo/pull/123`
+- Auto-detect PR: `gh-pr-threads` (in git repository)
 - Options: `--all`, `--include-done`, `--only=<types>`
 - Version and help: `--version`, `--help`
 
@@ -124,7 +124,7 @@ node dist/index.js --help     # ✅ Shows help
 
 2. **Create git repository**:
 ```bash
-cd ~/projects/ai/pr-comment-fetcher
+cd ~/projects/ai/gh-pr-threads
 git init
 git add .
 git commit -m "Initial release v1.0.0"
@@ -140,7 +140,7 @@ npm publish
 
 4. **After publishing, use**:
 ```bash
-npx pr-comment-fetcher <PR_URL>
+npx gh-pr-threads <PR_URL>
 ```
 
 ## Implementation Details
@@ -187,7 +187,7 @@ NPM package is ready for publishing and use! 🎉
 
 Can be run via:
 ```bash
-npx pr-comment-fetcher <PR_URL>
+npx gh-pr-threads <PR_URL>
 ```
 
 All requirements from the plan are 100% fulfilled.

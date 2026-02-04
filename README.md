@@ -86,6 +86,23 @@ npx gh-pr-threads <PR_URL> --all --include-done --with-resolved --only=threads,u
 npx gh-pr-threads --owner=owner --repo=repo-name --number=123
 ```
 
+### Clear Command
+
+Clear all marked items (done/skip) from state:
+
+```bash
+# Clear state for current PR
+gh-pr-threads clear
+
+# Clear state for specific PR URL
+gh-pr-threads clear https://github.com/owner/repo/pull/123
+
+# Clear state with manual specification
+gh-pr-threads clear --owner=owner --repo=repo-name --number=123
+```
+
+This removes the state file, allowing you to restart review processing from scratch.
+
 ## Filtering Options
 
 ### Data Types (--only)

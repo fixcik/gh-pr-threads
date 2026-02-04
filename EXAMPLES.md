@@ -1,71 +1,88 @@
-# pr-comment-fetcher Usage Examples
+# gh-pr-threads Usage Examples
 
 ## Basic Examples
 
 ### 1. Get all unresolved threads
 ```bash
-pr-comment-fetcher https://github.com/owner/repo/pull/123 --only=threads
+gh-pr-threads https://github.com/owner/repo/pull/123 --only=threads
 ```
 
 ### 2. Get only comments from real users
 ```bash
-pr-comment-fetcher https://github.com/owner/repo/pull/123 --only=userComments
+gh-pr-threads https://github.com/owner/repo/pull/123 --only=userComments
 ```
 
 ### 3. Get nitpicks from CodeRabbit
 ```bash
-pr-comment-fetcher https://github.com/owner/repo/pull/123 --only=nitpicks
+gh-pr-threads https://github.com/owner/repo/pull/123 --only=nitpicks
 ```
 
 ### 4. Get full summaries from bots
 ```bash
-pr-comment-fetcher https://github.com/owner/repo/pull/123 --only=summaries
+gh-pr-threads https://github.com/owner/repo/pull/123 --only=summaries
 ```
 
 ## Combinations
 
 ### Get threads and nitpicks
 ```bash
-pr-comment-fetcher https://github.com/owner/repo/pull/123 --only=threads,nitpicks
+gh-pr-threads https://github.com/owner/repo/pull/123 --only=threads,nitpicks
 ```
 
 ### Show everything including resolved threads
 ```bash
-pr-comment-fetcher https://github.com/owner/repo/pull/123 --all
+gh-pr-threads https://github.com/owner/repo/pull/123 --all
 ```
 
 ### Include threads marked as done/skip
 ```bash
-pr-comment-fetcher https://github.com/owner/repo/pull/123 --include-done
+gh-pr-threads https://github.com/owner/repo/pull/123 --include-done
 ```
 
 ## Processing Output with jq
 
 ### Get only summary
 ```bash
-pr-comment-fetcher <PR_URL> | jq '.summary'
+gh-pr-threads <PR_URL> | jq '.summary'
 ```
 
 ### Get list of changed files
 ```bash
-pr-comment-fetcher <PR_URL> --only=files | jq '.pr.files[] | {path, additions, deletions}'
+gh-pr-threads <PR_URL> --only=files | jq '.pr.files[] | {path, additions, deletions}'
 ```
 
 ### Get comment count by author
 ```bash
-pr-comment-fetcher <PR_URL> --only=userComments | jq '.summary.userCommentsByAuthor'
+gh-pr-threads <PR_URL> --only=userComments | jq '.summary.userCommentsByAuthor'
 ```
 
 ### Get all unresolved threads with files
 ```bash
-pr-comment-fetcher <PR_URL> --only=threads | jq '.threads[] | {path, line, status: .isResolved}'
+gh-pr-threads <PR_URL> --only=threads | jq '.threads[] | {path, line, status: .isResolved}'
 ```
 
 ### Get all nitpicks for a specific file
 ```bash
-pr-comment-fetcher <PR_URL> --only=nitpicks | \
+gh-pr-threads <PR_URL> --only=nitpicks | \
   jq '.botSummaries[].nitpicks[] | select(.path == "src/index.ts")'
 ```
+
+## Clear State Command
+
+### Clear all marks for a specific PR
+
+```bash
+# Clear state for current PR (auto-detect)
+gh-pr-threads clear
+
+# Clear state for specific PR URL
+gh-pr-threads clear https://github.com/owner/repo/pull/123
+
+# Clear state with manual PR specification
+gh-pr-threads clear --owner=fixcik --repo=gh-pr-threads --number=123
+```
+
+This removes the state file completely, allowing you to reset all `done` and `skip` marks. Next time you run the tool, all items will be shown as unprocessed.
 
 ## Working with State
 
@@ -99,7 +116,7 @@ Then use `--include-done` to see processed items or omit it to hide them.
 ```bash
 #!/bin/bash
 PR_URL="$1"
-UNRESOLVED=$(pr-comment-fetcher "$PR_URL" --only=threads | jq '.summary.unresolvedCount')
+UNRESOLVED=$(gh-pr-threads "$PR_URL" --only=threads | jq '.summary.unresolvedCount')
 
 if [ "$UNRESOLVED" -gt 0 ]; then
   echo "❌ PR has $UNRESOLVED unresolved comments"
@@ -111,13 +128,13 @@ fi
 
 ### Get list of files requiring attention
 ```bash
-pr-comment-fetcher <PR_URL> --only=threads | \
+gh-pr-threads <PR_URL> --only=threads | \
   jq -r '.threads[] | select(.isResolved == false) | .path' | \
   sort -u
 ```
 
 ### Export comments to Markdown
 ```bash
-pr-comment-fetcher <PR_URL> --only=userComments | \
+gh-pr-threads <PR_URL> --only=userComments | \
   jq -r '.userComments[] | "## [\(.author)](\(.url))\n\n\(.body)\n\n---\n"'
 ```

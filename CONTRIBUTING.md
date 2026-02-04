@@ -1,6 +1,6 @@
-# Contributing to pr-comment-fetcher
+# Contributing to gh-pr-threads
 
-Thank you for your interest in improving pr-comment-fetcher!
+Thank you for your interest in improving gh-pr-threads!
 
 ## Development
 
@@ -13,7 +13,7 @@ Thank you for your interest in improving pr-comment-fetcher!
 
 ```bash
 git clone <your-fork>
-cd pr-comment-fetcher
+cd gh-pr-threads
 npm install
 ```
 

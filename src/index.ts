@@ -7,18 +7,19 @@ import { fetchAllPages, fetchAllThreadComments } from './github/fetcher.js';
 import { THREADS_QUERY, FILES_QUERY, REVIEWS_QUERY, COMMENTS_QUERY, META_QUERY } from './github/queries.js';
 import { parseNitpicks } from './parsers/nitpicks.js';
 import { cleanCommentBody } from './parsers/comments.js';
-import { getStatePath, loadState } from './state/manager.js';
+import { getStatePath, loadState, registerIds, saveState } from './state/manager.js';
 import { formatOutput } from './output/formatter.js';
-import type { Thread, ProcessedThread, BotSummary, UserComment } from './types.js';
+import { formatPlainOutput } from './output/plainFormatter.js';
+import type { Thread, ProcessedThread, BotSummary, UserComment, Nitpick } from './types.js';
 
 const debug = Debug('gh-pr-threads');
 const debugTiming = Debug('gh-pr-threads:timing');
 
 async function main() {
   const startTime = Date.now();
-  const { owner, repo, number, showAll, only, includeDone, withResolved } = parseCliArgs();
+  const { owner, repo, number, showAll, only, includeDone, withResolved, format } = parseCliArgs();
   debug(`Fetching PR ${owner}/${repo}#${number}`);
-  debug(`Options: showAll=${showAll}, includeDone=${includeDone}, withResolved=${withResolved}, only=${only.join(',') || 'all'}`);
+  debug(`Options: showAll=${showAll}, includeDone=${includeDone}, withResolved=${withResolved}, only=${only.join(',') || 'all'}, format=${format}`);
 
   const filter = (key: string) => only.length === 0 || only.includes(key);
   const statePath = getStatePath(owner, repo, number);
@@ -211,13 +212,30 @@ async function main() {
     debugTiming(`User comments processed: ${userComments.length} comments (${resolvedSkipped} threads skipped) in ${Date.now() - t1}ms`);
   }
 
-  const output = formatOutput(prMeta, statePath, processedThreads, botSummaries, userComments, allThreads, filter);
+  // Collect all nitpicks for ID registration
+  const allNitpicks: Nitpick[] = [];
+  botSummaries.forEach((summary) => {
+    if (summary.nitpicks) {
+      allNitpicks.push(...summary.nitpicks);
+    }
+  });
+
+  // Register IDs for short hash lookup
+  registerIds(state, processedThreads, allNitpicks);
+  saveState(statePath, state);
 
   const totalTime = Date.now() - startTime;
   debugTiming(`Total execution time: ${totalTime}ms`);
   debug('Output ready');
 
-  console.log(JSON.stringify(output, null, 2));
+  // Output in selected format
+  if (format === 'json') {
+    const output = formatOutput(prMeta, statePath, processedThreads, botSummaries, userComments, allThreads, filter);
+    console.log(JSON.stringify(output, null, 2));
+  } else {
+    const output = formatPlainOutput(prMeta, statePath, processedThreads, botSummaries, userComments, allThreads, filter);
+    console.log(output);
+  }
 }
 
 main().catch(err => {
