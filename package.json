@@ -40,10 +40,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/fixcik/pr-comment-fetcher.git"
+    "url": "https://github.com/fixcik/gh-pr-threads.git"
   },
   "bugs": {
-    "url": "https://github.com/fixcik/pr-comment-fetcher/issues"
+    "url": "https://github.com/fixcik/gh-pr-threads/issues"
   },
-  "homepage": "https://github.com/fixcik/pr-comment-fetcher#readme"
+  "homepage": "https://github.com/fixcik/gh-pr-threads#readme"
 }
