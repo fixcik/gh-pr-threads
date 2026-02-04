@@ -28,7 +28,10 @@ export function runGhMutation<T = unknown>(query: string, variables: Record<stri
     if (result.errors) {
       throw new Error(result.errors.map((e) => e.message).join(', '));
     }
-    return result.data as T;
+    if (!result.data) {
+      throw new Error('GraphQL response missing data field');
+    }
+    return result.data;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`GraphQL mutation failed: ${message}`);

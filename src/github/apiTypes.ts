@@ -1,6 +1,6 @@
 /**
  * GitHub GraphQL API types
- * Определения типов для ответов от GitHub GraphQL API
+ * Type definitions for GitHub GraphQL API responses
  */
 
 export interface PageInfo {
@@ -80,7 +80,7 @@ export interface AddReplyMutationData {
 export interface ResolveMutationData {
   resolveReviewThread?: {
     thread?: {
-      id: string;
+      isResolved: boolean;
     };
   };
 }

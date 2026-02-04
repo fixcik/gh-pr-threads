@@ -1,28 +1,8 @@
-import { execSync } from 'child_process';
 import { getStatePath, loadState, saveState, markItem, resolveId } from '../state/manager.js';
 import { runGhMutation } from '../github/client.js';
 import { REPLY_MUTATION, RESOLVE_MUTATION } from '../github/mutations.js';
+import { detectPR } from '../utils/pr.js';
 import type { AddReplyMutationData, ResolveMutationData } from '../github/apiTypes.js';
-
-interface PRInfo {
-  owner: string;
-  repo: string;
-  number: number;
-}
-
-function detectPR(): PRInfo {
-  try {
-    const prInfo = JSON.parse(execSync('gh pr view --json number,url', { encoding: 'utf8' }));
-    const parts = prInfo.url.replace('https://github.com/', '').split('/');
-    return {
-      owner: parts[0],
-      repo: parts[1],
-      number: prInfo.number
-    };
-  } catch {
-    throw new Error('Could not detect PR. Make sure you are in a git repository with an open PR.');
-  }
-}
 
 export async function runResolveCommand(
   id: string,
@@ -71,8 +51,8 @@ export async function runResolveCommand(
     saveState(statePath, state);
     console.log(`💾 State saved`);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`❌ Failed to resolve: ${message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`❌ Failed to resolve: ${errorMessage}`);
     process.exit(1);
   }
 }
