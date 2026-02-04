@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import Debug from 'debug';
 import { parseCliArgs } from './cli.js';
 import { runGh } from './github/client.js';
 import { fetchAllPages, fetchAllThreadComments } from './github/fetcher.js';
@@ -10,13 +11,23 @@ import { getStatePath, loadState } from './state/manager.js';
 import { formatOutput } from './output/formatter.js';
 import type { Thread, ProcessedThread, BotSummary, UserComment } from './types.js';
 
+const debug = Debug('gh-pr-threads');
+const debugTiming = Debug('gh-pr-threads:timing');
+
 async function main() {
+  const startTime = Date.now();
   const { owner, repo, number, showAll, only, includeDone, withResolved } = parseCliArgs();
+  debug(`Fetching PR ${owner}/${repo}#${number}`);
+  debug(`Options: showAll=${showAll}, includeDone=${includeDone}, withResolved=${withResolved}, only=${only.join(',') || 'all'}`);
+  
   const filter = (key: string) => only.length === 0 || only.includes(key);
   const statePath = getStatePath(owner, repo, number);
   const state = loadState(statePath);
+  debug(`State loaded from ${statePath}`);
 
   // 1. Fetch review threads
+  debug('Fetching review threads...');
+  let t1 = Date.now();
   const allThreads: Thread[] = await fetchAllPages(
     owner,
     repo,
@@ -25,13 +36,19 @@ async function main() {
     pr => pr.reviewThreads.nodes,
     pr => pr.reviewThreads.pageInfo
   );
+  debugTiming(`Threads fetched: ${allThreads.length} threads in ${Date.now() - t1}ms`);
 
   // 2. Fetch files
+  debug('Fetching files...');
+  t1 = Date.now();
   const allFiles = filter('files')
     ? await fetchAllPages(owner, repo, number, FILES_QUERY, pr => pr.files.nodes, pr => pr.files.pageInfo)
     : [];
+  debugTiming(`Files fetched: ${allFiles.length} files in ${Date.now() - t1}ms`);
 
   // 3. Fetch reviews
+  debug('Fetching reviews...');
+  t1 = Date.now();
   const allReviews = await fetchAllPages(
     owner,
     repo,
@@ -40,8 +57,11 @@ async function main() {
     pr => pr.reviews.nodes,
     pr => pr.reviews.pageInfo
   );
+  debugTiming(`Reviews fetched: ${allReviews.length} reviews in ${Date.now() - t1}ms`);
 
   // 4. Fetch general comments
+  debug('Fetching general comments...');
+  t1 = Date.now();
   const allComments = await fetchAllPages(
     owner,
     repo,
@@ -50,8 +70,11 @@ async function main() {
     pr => pr.comments.nodes,
     pr => pr.comments.pageInfo
   );
+  debugTiming(`Comments fetched: ${allComments.length} comments in ${Date.now() - t1}ms`);
 
   // 5. Get PR Meta
+  debug('Fetching PR metadata...');
+  t1 = Date.now();
   const metaResult = runGh([
     'api',
     'graphql',
@@ -60,16 +83,27 @@ async function main() {
     `-F number=${number}`,
     `-f query='${META_QUERY}'`
   ]);
+  debugTiming(`PR metadata fetched in ${Date.now() - t1}ms`);
+  
   const pr = metaResult.data.repository.pullRequest;
   const prMeta = { ...pr, author: pr.author.login, files: allFiles };
 
   // 6. Process Threads
+  debug('Processing review threads...');
+  t1 = Date.now();
   const processedThreads: ProcessedThread[] = [];
   if (filter('threads')) {
+    let skipped = 0;
     for (const t of allThreads) {
-      if (!showAll && t.isResolved) continue;
+      if (!showAll && t.isResolved) {
+        skipped++;
+        continue;
+      }
       const threadStatus = state.threads[t.id]?.status;
-      if (!includeDone && (threadStatus === 'done' || threadStatus === 'skip')) continue;
+      if (!includeDone && (threadStatus === 'done' || threadStatus === 'skip')) {
+        skipped++;
+        continue;
+      }
 
       const comments = await fetchAllThreadComments(owner, repo, number, t);
       processedThreads.push({
@@ -88,15 +122,22 @@ async function main() {
         }))
       });
     }
+    debugTiming(`Threads processed: ${processedThreads.length} / ${allThreads.length} (${skipped} skipped) in ${Date.now() - t1}ms`);
   }
 
   // 7. Process Bot Summaries
+  debug('Processing bot summaries...');
+  t1 = Date.now();
   const botSummaries: BotSummary[] = [];
   if (filter('summaries') || filter('nitpicks')) {
     const bots = ['coderabbitai', 'github-actions', 'sonarqubecloud'];
     const candidates = [...allComments, ...allReviews].filter(c => bots.includes(c.author?.login));
+    debug(`Found ${candidates.length} bot comments`);
+    
+    let totalNitpicks = 0;
     for (const c of candidates) {
       let nitpicks = parseNitpicks(c.body);
+      totalNitpicks += nitpicks.length;
       if (filter('nitpicks')) {
         nitpicks = nitpicks
           .map(n => ({ ...n, status: state.nitpicks[n.id]?.status }))
@@ -107,15 +148,22 @@ async function main() {
       if (filter('nitpicks')) result.nitpicks = nitpicks;
       if (result.body || (result.nitpicks && result.nitpicks.length > 0)) botSummaries.push(result);
     }
+    debugTiming(`Bot summaries processed: ${botSummaries.length} summaries, ${totalNitpicks} total nitpicks in ${Date.now() - t1}ms`);
   }
 
   // 8. Process User Comments
+  debug('Processing user comments...');
+  t1 = Date.now();
   const userComments: UserComment[] = [];
   if (filter('userComments')) {
     const bots = ['coderabbitai', 'github-actions', 'sonarqubecloud', 'dependabot'];
+    let resolvedSkipped = 0;
     for (const t of allThreads) {
       // Filter resolved threads unless --with-resolved is set
-      if (!withResolved && t.isResolved) continue;
+      if (!withResolved && t.isResolved) {
+        resolvedSkipped++;
+        continue;
+      }
       
       const comments = await fetchAllThreadComments(owner, repo, number, t);
       for (const c of comments) {
@@ -136,9 +184,15 @@ async function main() {
       }
     }
     userComments.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    debugTiming(`User comments processed: ${userComments.length} comments (${resolvedSkipped} threads skipped) in ${Date.now() - t1}ms`);
   }
 
   const output = formatOutput(prMeta, statePath, processedThreads, botSummaries, userComments, allThreads, filter);
+  
+  const totalTime = Date.now() - startTime;
+  debugTiming(`Total execution time: ${totalTime}ms`);
+  debug('Output ready');
+  
   console.log(JSON.stringify(output, null, 2));
 }
 

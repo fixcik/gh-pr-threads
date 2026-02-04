@@ -1,6 +1,9 @@
+import Debug from 'debug';
 import { runGh } from './client.js';
 import { THREAD_COMMENTS_QUERY } from './queries.js';
 import type { Thread, ThreadComment } from '../types.js';
+
+const debug = Debug('gh-pr-threads:fetcher');
 
 export async function fetchAllPages(
   owner: string,
@@ -13,8 +16,11 @@ export async function fetchAllPages(
   const allNodes: any[] = [];
   let cursor: string | null = null;
   let hasNextPage = true;
+  let pageCount = 0;
 
   while (hasNextPage) {
+    pageCount++;
+    const startTime = Date.now();
     const ghArgs = [
       'api', 'graphql',
       `-F owner="${owner}"`,
@@ -27,11 +33,15 @@ export async function fetchAllPages(
     const result = runGh(ghArgs);
     const pr = result.data.repository.pullRequest;
 
-    allNodes.push(...getNodes(pr));
+    const nodes = getNodes(pr);
+    allNodes.push(...nodes);
+    debug(`Page ${pageCount}: fetched ${nodes.length} nodes in ${Date.now() - startTime}ms`);
+    
     const pageInfo = getPageInfo(pr);
     hasNextPage = pageInfo.hasNextPage;
     cursor = pageInfo.endCursor;
   }
+  debug(`Completed ${pageCount} pages, total ${allNodes.length} nodes`);
   return allNodes;
 }
 
@@ -41,11 +51,15 @@ export async function fetchAllThreadComments(
   number: number,
   thread: Thread
 ): Promise<ThreadComment[]> {
+  const startTime = Date.now();
   const comments = [...thread.comments.nodes];
   let cursor = thread.comments.pageInfo.endCursor;
   let hasNextPage = thread.comments.pageInfo.hasNextPage;
+  let pageCount = comments.length > 0 ? 1 : 0;
 
   while (hasNextPage && cursor) {
+    pageCount++;
+    const pageStartTime = Date.now();
     const ghArgs = [
       'api', 'graphql',
       `-F owner="${owner}"`,
@@ -60,9 +74,13 @@ export async function fetchAllThreadComments(
     const threadData = result.data.repository.pullRequest.reviewThread;
     if (!threadData) break;
 
-    comments.push(...threadData.comments.nodes);
+    const newComments = threadData.comments.nodes;
+    comments.push(...newComments);
+    debug(`Thread ${thread.id} page ${pageCount}: fetched ${newComments.length} comments in ${Date.now() - pageStartTime}ms`);
+    
     hasNextPage = threadData.comments.pageInfo.hasNextPage;
     cursor = threadData.comments.pageInfo.endCursor;
   }
+  debug(`Thread ${thread.id}: completed ${pageCount} pages, total ${comments.length} comments in ${Date.now() - startTime}ms`);
   return comments;
 }

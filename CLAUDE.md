@@ -25,8 +25,33 @@ gh-pr-threads --help
 npm unlink -g gh-pr-threads  # to unlink
 ```
 
-### No Tests or Linting
-This project currently has no test suite or linter configured. Manual testing is done via `npm run dev` or the built binary.
+### Debugging & Performance Testing
+
+The project uses the `debug` library for logging and performance profiling:
+
+```bash
+# Enable all debug logs
+DEBUG=gh-pr-threads npm run dev -- <PR_URL>
+
+# Enable only timing logs
+DEBUG=gh-pr-threads:timing npm run dev -- <PR_URL>
+
+# Enable fetcher logs
+DEBUG=gh-pr-threads:fetcher npm run dev -- <PR_URL>
+
+# Combine multiple namespaces
+DEBUG=gh-pr-threads:* npm run dev -- <PR_URL>
+
+# Test the built binary with logs
+DEBUG=gh-pr-threads npx gh-pr-threads <PR_URL>
+```
+
+Timing logs show:
+- API fetch times for each page
+- Processing time for threads, comments, and bot summaries
+- Total execution time
+
+No tests or linting are configured. Manual testing is done via `npm run dev` or the built binary.
 
 ## Architecture
 
