@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -107,17 +107,16 @@ function downloadAndSaveImage(url: string): string | null {
   }
 
   try {
-    let curlCmd: string;
+    const curlArgs = ['-s', '-L', '-o', filePath];
 
     // Check if it's a GitHub URL that needs authentication
     if (url.includes('github.com') || url.includes('githubusercontent.com')) {
       const token = execSync('gh auth token', { encoding: 'utf8' }).trim();
-      curlCmd = `curl -s -L -H "Authorization: token ${token}" "${url}" -o "${filePath}"`;
-    } else {
-      curlCmd = `curl -s -L "${url}" -o "${filePath}"`;
+      curlArgs.push('-H', `Authorization: token ${token}`);
     }
 
-    execSync(curlCmd, { timeout: 15000 });
+    curlArgs.push(url);
+    execFileSync('curl', curlArgs, { timeout: 15000 });
 
     // Verify file was created and has content
     if (fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
