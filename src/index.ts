@@ -107,6 +107,9 @@ async function main() {
   debug('Processing review threads...');
   t1 = Date.now();
   const processedThreads: ProcessedThread[] = [];
+  // Cache to avoid fetching same thread comments twice
+  const threadCommentsCache = new Map<string, any>();
+  
   if (filter('threads')) {
     let skipped = 0;
     for (const t of allThreads) {
@@ -121,6 +124,7 @@ async function main() {
       }
 
       const comments = await fetchAllThreadComments(owner, repo, number, t);
+      threadCommentsCache.set(t.id, comments);
       processedThreads.push({
         thread_id: t.id,
         isResolved: t.isResolved,
@@ -180,7 +184,12 @@ async function main() {
         continue;
       }
 
-      const comments = await fetchAllThreadComments(owner, repo, number, t);
+      // Use cached comments if available (from threads processing), otherwise fetch
+      let comments = threadCommentsCache.get(t.id);
+      if (!comments) {
+        comments = await fetchAllThreadComments(owner, repo, number, t);
+      }
+      
       for (const c of comments) {
         if (!bots.includes(c.author?.login)) {
           userComments.push({

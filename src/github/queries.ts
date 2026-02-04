@@ -2,7 +2,7 @@ export const THREADS_QUERY = `
   query($owner: String!, $repo: String!, $number: Int!, $after: String) {
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
-        reviewThreads(first: 50, after: $after) {
+        reviewThreads(first: 100, after: $after) {
           pageInfo { hasNextPage endCursor }
           nodes {
             id isResolved isOutdated path line
@@ -34,7 +34,7 @@ export const REVIEWS_QUERY = `
   query($owner: String!, $repo: String!, $number: Int!, $after: String) {
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
-        reviews(first: 50, after: $after) {
+        reviews(first: 100, after: $after) {
           pageInfo { hasNextPage endCursor }
           nodes { author { login } body url state }
         }
@@ -47,7 +47,7 @@ export const COMMENTS_QUERY = `
   query($owner: String!, $repo: String!, $number: Int!, $after: String) {
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
-        comments(first: 50, after: $after) {
+        comments(first: 100, after: $after) {
           pageInfo { hasNextPage endCursor }
           nodes { id body author { login } url createdAt }
         }
@@ -76,7 +76,7 @@ export const THREAD_COMMENTS_QUERY = `
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
         reviewThread(id: $threadId) {
-          comments(first: 50, after: $after) {
+          comments(first: 100, after: $after) {
             pageInfo { hasNextPage endCursor }
             nodes { id body author { login } url createdAt path line }
           }
