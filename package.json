@@ -12,6 +12,14 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "prepare": "simple-git-hooks",
     "prepublishOnly": "npm run build",
     "publish:patch": "npm version patch && npm publish && git push origin master && git push origin --tags",
     "publish:minor": "npm version minor && npm publish && git push origin master && git push origin --tags",
@@ -50,5 +58,14 @@
   "bugs": {
     "url": "https://github.com/fixcik/gh-pr-threads/issues"
   },
-  "homepage": "https://github.com/fixcik/gh-pr-threads#readme"
+  "homepage": "https://github.com/fixcik/gh-pr-threads#readme",
+  "simple-git-hooks": {
+    "pre-commit": "npx nano-staged"
+  },
+  "nano-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "npm run typecheck"
+    ]
+  }
 }
