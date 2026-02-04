@@ -1,6 +1,6 @@
 {
   "name": "gh-pr-threads",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Fetch and filter GitHub PR review threads, comments, and nitpicks",
   "type": "module",
   "bin": {
