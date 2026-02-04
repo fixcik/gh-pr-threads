@@ -8,36 +8,15 @@ describe('getNitpickId', () => {
     expect(result).toBe('src/index.ts:42');
   });
 
-  it('should create hash-based ID when file path is "unknown"', () => {
-    const result = getNitpickId('unknown', '42', 'test content');
-
-    expect(result).toHaveLength(8);
-    expect(result).toMatch(/^[a-f0-9]{8}$/);
-  });
-
-  it('should create hash-based ID when file path is empty', () => {
-    const result = getNitpickId('', '42', 'test content');
-
-    expect(result).toHaveLength(8);
-    expect(result).toMatch(/^[a-f0-9]{8}$/);
-  });
-
-  it('should create hash-based ID when line is empty', () => {
-    const result = getNitpickId('src/index.ts', '', 'test content');
-
-    expect(result).toHaveLength(8);
-    expect(result).toMatch(/^[a-f0-9]{8}$/);
-  });
-
-  it('should create hash-based ID when file path contains "comments" (case insensitive)', () => {
-    const result = getNitpickId('comments/test.ts', '42', 'test content');
-
-    expect(result).toHaveLength(8);
-    expect(result).toMatch(/^[a-f0-9]{8}$/);
-  });
-
-  it('should create hash-based ID when file path contains "COMMENTS" (uppercase)', () => {
-    const result = getNitpickId('COMMENTS/test.ts', '42', 'test content');
+  // Test cases where hash-based ID should be created
+  it.each([
+    { filePath: 'unknown', line: '42', reason: 'file path is "unknown"' },
+    { filePath: '', line: '42', reason: 'file path is empty' },
+    { filePath: 'src/index.ts', line: '', reason: 'line is empty' },
+    { filePath: 'comments/test.ts', line: '42', reason: 'file path contains "comments"' },
+    { filePath: 'COMMENTS/test.ts', line: '42', reason: 'file path contains "COMMENTS"' }
+  ])('should create hash-based ID when $reason', ({ filePath, line }) => {
+    const result = getNitpickId(filePath, line, 'test content');
 
     expect(result).toHaveLength(8);
     expect(result).toMatch(/^[a-f0-9]{8}$/);
