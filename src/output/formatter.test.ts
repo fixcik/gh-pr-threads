@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatOutput } from './formatter.js';
-import type { ProcessedThread, BotSummary } from '../types.js';
+import { buildProcessedThread, buildBotSummary, buildNitpick } from '../__fixtures__/factories.js';
 
 describe('formatOutput', () => {
   const mockPrMeta = {
@@ -15,34 +15,20 @@ describe('formatOutput', () => {
 
   const mockStatePath = '/path/to/state.json';
 
-  const mockThread: ProcessedThread = {
-    thread_id: 'PRRT_test123',
-    comments: [],
-    status: undefined,
-    isResolved: false,
-    isOutdated: false,
-    path: 'test.ts',
-    line: null
-  };
-
-  const mockBotSummary: BotSummary = {
-    url: 'https://example.com',
-    author: 'bot',
-    body: 'Summary',
-    nitpicks: [
-      { id: 'nit1', path: 'file.ts', line: '10', content: 'Fix this' }
-    ]
-  };
+  const mockThread = buildProcessedThread();
+  const mockBotSummary = buildBotSummary({
+    nitpicks: [buildNitpick({ id: 'nit1', path: 'file.ts', line: '10', content: 'Fix this' })]
+  });
 
   it('should create basic output structure', () => {
-    const result = formatOutput(
-      mockPrMeta,
-      mockStatePath,
-      [],
-      [],
-      [],
-      () => true
-    );
+    const result = formatOutput({
+      prMeta: mockPrMeta,
+      statePath: mockStatePath,
+      processedThreads: [],
+      botSummaries: [],
+      allThreads: [],
+      filter: () => true
+    });
 
     expect(result).toHaveProperty('pr');
     expect(result).toHaveProperty('statePath');
@@ -50,14 +36,14 @@ describe('formatOutput', () => {
   });
 
   it('should include PR metadata', () => {
-    const result = formatOutput(
-      mockPrMeta,
-      mockStatePath,
-      [],
-      [],
-      [],
-      () => true
-    );
+    const result = formatOutput({
+      prMeta: mockPrMeta,
+      statePath: mockStatePath,
+      processedThreads: [],
+      botSummaries: [],
+      allThreads: [],
+      filter: () => true
+    });
 
     expect(result.pr).toEqual(mockPrMeta);
     expect(result.statePath).toBe(mockStatePath);
@@ -73,14 +59,14 @@ describe('formatOutput', () => {
     const processedThreads = [mockThread];
     const botSummaries = [mockBotSummary];
 
-    const result = formatOutput(
-      mockPrMeta,
-      mockStatePath,
+    const result = formatOutput({
+      prMeta: mockPrMeta,
+      statePath: mockStatePath,
       processedThreads,
       botSummaries,
       allThreads,
-      () => true
-    );
+      filter: () => true
+    });
 
     expect(result.summary.totalThreads).toBe(3);
     expect(result.summary.filteredCount).toBe(1);
@@ -91,48 +77,42 @@ describe('formatOutput', () => {
 
   it('should count nitpicks across multiple bot summaries', () => {
     const botSummaries = [
-      {
-        ...mockBotSummary,
+      buildBotSummary({
         nitpicks: [
-          { id: 'nit1', path: 'file1.ts', line: '10', content: 'Fix 1' },
-          { id: 'nit2', path: 'file2.ts', line: '20', content: 'Fix 2' }
+          buildNitpick({ id: 'nit1', path: 'file1.ts', line: '10', content: 'Fix 1' }),
+          buildNitpick({ id: 'nit2', path: 'file2.ts', line: '20', content: 'Fix 2' })
         ]
-      },
-      {
-        ...mockBotSummary,
+      }),
+      buildBotSummary({
         nitpicks: [
-          { id: 'nit3', path: 'file3.ts', line: '30', content: 'Fix 3' }
+          buildNitpick({ id: 'nit3', path: 'file3.ts', line: '30', content: 'Fix 3' })
         ]
-      }
+      })
     ];
 
-    const result = formatOutput(
-      mockPrMeta,
-      mockStatePath,
-      [],
+    const result = formatOutput({
+      prMeta: mockPrMeta,
+      statePath: mockStatePath,
+      processedThreads: [],
       botSummaries,
-      [],
-      () => true
-    );
+      allThreads: [],
+      filter: () => true
+    });
 
     expect(result.summary.nitpicksCount).toBe(3);
   });
 
   it('should handle bot summaries without nitpicks', () => {
-    const botSummaryWithoutNitpicks: BotSummary = {
-      url: 'https://example.com',
-      author: 'bot',
-      body: 'Summary'
-    };
+    const botSummaryWithoutNitpicks = buildBotSummary();
 
-    const result = formatOutput(
-      mockPrMeta,
-      mockStatePath,
-      [],
-      [botSummaryWithoutNitpicks],
-      [],
-      () => true
-    );
+    const result = formatOutput({
+      prMeta: mockPrMeta,
+      statePath: mockStatePath,
+      processedThreads: [],
+      botSummaries: [botSummaryWithoutNitpicks],
+      allThreads: [],
+      filter: () => true
+    });
 
     expect(result.summary.nitpicksCount).toBe(0);
   });
@@ -140,14 +120,14 @@ describe('formatOutput', () => {
   it('should include threads when filter returns true for "threads"', () => {
     const processedThreads = [mockThread];
 
-    const result = formatOutput(
-      mockPrMeta,
-      mockStatePath,
+    const result = formatOutput({
+      prMeta: mockPrMeta,
+      statePath: mockStatePath,
       processedThreads,
-      [],
-      [],
-      (key) => key === 'threads'
-    );
+      botSummaries: [],
+      allThreads: [],
+      filter: (key) => key === 'threads'
+    });
 
     expect(result.threads).toEqual(processedThreads);
   });
@@ -155,14 +135,14 @@ describe('formatOutput', () => {
   it('should not include threads when filter returns false for "threads"', () => {
     const processedThreads = [mockThread];
 
-    const result = formatOutput(
-      mockPrMeta,
-      mockStatePath,
+    const result = formatOutput({
+      prMeta: mockPrMeta,
+      statePath: mockStatePath,
       processedThreads,
-      [],
-      [],
-      (key) => key !== 'threads'
-    );
+      botSummaries: [],
+      allThreads: [],
+      filter: (key) => key !== 'threads'
+    });
 
     expect(result.threads).toBeUndefined();
   });
@@ -170,14 +150,14 @@ describe('formatOutput', () => {
   it('should include bot summaries when filter returns true for "summaries"', () => {
     const botSummaries = [mockBotSummary];
 
-    const result = formatOutput(
-      mockPrMeta,
-      mockStatePath,
-      [],
+    const result = formatOutput({
+      prMeta: mockPrMeta,
+      statePath: mockStatePath,
+      processedThreads: [],
       botSummaries,
-      [],
-      (key) => key === 'summaries'
-    );
+      allThreads: [],
+      filter: (key) => key === 'summaries'
+    });
 
     expect(result.botSummaries).toEqual(botSummaries);
   });
@@ -185,14 +165,14 @@ describe('formatOutput', () => {
   it('should include bot summaries when filter returns true for "nitpicks"', () => {
     const botSummaries = [mockBotSummary];
 
-    const result = formatOutput(
-      mockPrMeta,
-      mockStatePath,
-      [],
+    const result = formatOutput({
+      prMeta: mockPrMeta,
+      statePath: mockStatePath,
+      processedThreads: [],
       botSummaries,
-      [],
-      (key) => key === 'nitpicks'
-    );
+      allThreads: [],
+      filter: (key) => key === 'nitpicks'
+    });
 
     expect(result.botSummaries).toEqual(botSummaries);
   });
@@ -200,27 +180,27 @@ describe('formatOutput', () => {
   it('should not include bot summaries when filter returns false', () => {
     const botSummaries = [mockBotSummary];
 
-    const result = formatOutput(
-      mockPrMeta,
-      mockStatePath,
-      [],
+    const result = formatOutput({
+      prMeta: mockPrMeta,
+      statePath: mockStatePath,
+      processedThreads: [],
       botSummaries,
-      [],
-      () => false
-    );
+      allThreads: [],
+      filter: () => false
+    });
 
     expect(result.botSummaries).toBeUndefined();
   });
 
   it('should handle empty arrays', () => {
-    const result = formatOutput(
-      mockPrMeta,
-      mockStatePath,
-      [],
-      [],
-      [],
-      () => true
-    );
+    const result = formatOutput({
+      prMeta: mockPrMeta,
+      statePath: mockStatePath,
+      processedThreads: [],
+      botSummaries: [],
+      allThreads: [],
+      filter: () => true
+    });
 
     expect(result.summary.totalThreads).toBe(0);
     expect(result.summary.filteredCount).toBe(0);
@@ -230,28 +210,28 @@ describe('formatOutput', () => {
   });
 
   it('should include all fields when filter always returns true', () => {
-    const result = formatOutput(
-      mockPrMeta,
-      mockStatePath,
-      [mockThread],
-      [mockBotSummary],
-      [],
-      () => true
-    );
+    const result = formatOutput({
+      prMeta: mockPrMeta,
+      statePath: mockStatePath,
+      processedThreads: [mockThread],
+      botSummaries: [mockBotSummary],
+      allThreads: [],
+      filter: () => true
+    });
 
     expect(result.threads).toBeDefined();
     expect(result.botSummaries).toBeDefined();
   });
 
   it('should include no optional fields when filter always returns false', () => {
-    const result = formatOutput(
-      mockPrMeta,
-      mockStatePath,
-      [mockThread],
-      [mockBotSummary],
-      [],
-      () => false
-    );
+    const result = formatOutput({
+      prMeta: mockPrMeta,
+      statePath: mockStatePath,
+      processedThreads: [mockThread],
+      botSummaries: [mockBotSummary],
+      allThreads: [],
+      filter: () => false
+    });
 
     expect(result.threads).toBeUndefined();
     expect(result.botSummaries).toBeUndefined();

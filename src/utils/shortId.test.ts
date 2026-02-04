@@ -24,23 +24,15 @@ describe('shortId', () => {
     expect(hash1).not.toBe(hash2);
   });
 
-  it('should handle empty string', () => {
-    const result = shortId('');
-
-    expect(result).toHaveLength(6);
-    expect(result).toMatch(/^[a-f0-9]{6}$/);
-  });
-
-  it('should handle long strings', () => {
-    const longString = 'a'.repeat(1000);
-    const result = shortId(longString);
-
-    expect(result).toHaveLength(6);
-    expect(result).toMatch(/^[a-f0-9]{6}$/);
-  });
-
-  it('should handle special characters', () => {
-    const result = shortId('test@#$%^&*()');
+  // Test various inputs produce valid 6-char hex hashes
+  it.each([
+    { input: '', description: 'empty string' },
+    { input: 'a'.repeat(1000), description: 'long string (1000 chars)' },
+    { input: 'test@#$%^&*()', description: 'special characters' },
+    { input: '🎉🚀✨', description: 'emojis' },
+    { input: '\n\t\r', description: 'whitespace characters' }
+  ])('should handle $description', ({ input }) => {
+    const result = shortId(input);
 
     expect(result).toHaveLength(6);
     expect(result).toMatch(/^[a-f0-9]{6}$/);

@@ -42,11 +42,11 @@ function wrapText(text: string, indent: string, maxWidth: number = terminalWidth
   const indentLength = stripAnsi(indent).length;
   const availableWidth = maxWidth - indentLength;
 
-  // Разбиваем на параграфы (пустая строка = новый параграф)
+  // Split into paragraphs (empty line = new paragraph)
   const paragraphs = text.split(/\n\n+/);
 
   paragraphs.forEach((para, paraIdx) => {
-    if (paraIdx > 0) lines.push(''); // Пустая строка между параграфами
+    if (paraIdx > 0) lines.push(''); // Empty line between paragraphs
 
     const paraLines = para.split('\n');
 
@@ -56,7 +56,7 @@ function wrapText(text: string, indent: string, maxWidth: number = terminalWidth
         return;
       }
 
-      // Нужен перенос
+      // Need wrapping
       const words = line.split(' ');
       let currentLine = '';
 
@@ -83,16 +83,16 @@ function wrapText(text: string, indent: string, maxWidth: number = terminalWidth
 }
 
 /**
- * Форматирует markdown текст (жирный, италик, inline code)
+ * Formats markdown text (bold, italic, inline code)
  */
 function formatMarkdown(text: string): string {
   // Inline code: `code`
   text = text.replace(/`([^`]+)`/g, (_, code) => colors.yellow(code));
 
-  // Жирный: **text**
+  // Bold: **text**
   text = text.replace(/\*\*([^*]+)\*\*/g, (_, content) => colors.bold(content));
 
-  // Италик: *text* или _text_ (но не внутри слов)
+  // Italic: *text* or _text_ (but not inside words)
   text = text.replace(/(?<!\w)\*([^*]+)\*(?!\w)/g, (_, content) => colors.italic(content));
   text = text.replace(/(?<!\w)_([^_]+)_(?!\w)/g, (_, content) => colors.italic(content));
 
@@ -100,23 +100,23 @@ function formatMarkdown(text: string): string {
 }
 
 /**
- * Форматирует diff блок с подсветкой
+ * Formats diff block with syntax highlighting
  */
 function formatDiffBlock(code: string, indent: string): string[] {
   const lines: string[] = [];
 
   code.split('\n').forEach(line => {
     if (line.startsWith('+')) {
-      // Добавленная строка - зеленая
+      // Added line - green
       lines.push(`${indent}      ${colors.green(line)}`);
     } else if (line.startsWith('-')) {
-      // Удаленная строка - красная
+      // Removed line - red
       lines.push(`${indent}      ${colors.red(line)}`);
     } else if (line.startsWith('@@')) {
-      // Hunk header - голубой
+      // Hunk header - cyan
       lines.push(`${indent}      ${colors.cyan(line)}`);
     } else {
-      // Контекст - обычный
+      // Context - normal
       lines.push(`${indent}      ${colors.dim(line)}`);
     }
   });
@@ -125,12 +125,12 @@ function formatDiffBlock(code: string, indent: string): string[] {
 }
 
 /**
- * Парсит и форматирует HTML <details> блоки
+ * Parses and formats HTML <details> blocks
  */
 function parseDetailsBlocks(text: string): { text: string; details: Array<{ summary: string; content: string }> } {
   const details: Array<{ summary: string; content: string }> = [];
 
-  // Находим все <details> блоки
+  // Find all <details> blocks
   const detailsRegex = /<details>\s*<summary>(.*?)<\/summary>\s*([\s\S]*?)<\/details>/gi;
 
   let match;
@@ -140,91 +140,98 @@ function parseDetailsBlocks(text: string): { text: string; details: Array<{ summ
     details.push({ summary, content });
   }
 
-  // Удаляем <details> блоки из текста
+  // Remove <details> blocks from text
   const cleanText = text.replace(detailsRegex, '').trim();
 
   return { text: cleanText, details };
 }
 
 /**
- * Форматирует body комментария:
- * - Показывает suggestion код с подсветкой синтаксиса
- * - Выделяет markdown (жирный, италик, inline code)
- * - Форматирует diff блоки с цветной подсветкой
- * - Выводит <details> блоки как quote с жирным заголовком
- * - Переносит длинные строки с учетом ширины терминала
+ * Formats a suggestion block with syntax highlighting
+ */
+function formatSuggestionBlock(code: string, restText: string, indent: string): string[] {
+  const lines: string[] = [];
+  lines.push(`${indent}    ${colors.green('suggestion:')}`);
+
+  try {
+    const highlighted = useColors
+      ? highlight(code, { language: 'typescript', ignoreIllegals: true })
+      : code;
+    highlighted.split('\n').forEach(line => {
+      lines.push(`${indent}      ${line}`);
+    });
+  } catch {
+    code.split('\n').forEach(line => {
+      lines.push(`${indent}      ${colors.dim(line)}`);
+    });
+  }
+
+  if (restText) {
+    lines.push('');
+    const formatted = formatMarkdown(restText);
+    lines.push(...wrapText(formatted, `${indent}    `));
+  }
+
+  return lines;
+}
+
+/**
+ * Formats main content (handles diff blocks or plain markdown)
+ */
+function formatMainContent(text: string, indent: string): string[] {
+  const diffMatch = text.match(/```diff\n([\s\S]*?)```/);
+  if (!diffMatch) {
+    const formatted = formatMarkdown(text);
+    return wrapText(formatted, `${indent}    `);
+  }
+
+  const lines: string[] = [];
+  const code = diffMatch[1];
+  const restText = text.replace(/```diff\n[\s\S]*?```/, '').trim();
+
+  if (restText) {
+    const formatted = formatMarkdown(restText);
+    lines.push(...wrapText(formatted, `${indent}    `));
+    lines.push('');
+  }
+
+  lines.push(...formatDiffBlock(code, indent));
+  return lines;
+}
+
+/**
+ * Formats comment body:
+ * - Shows suggestion code with syntax highlighting
+ * - Highlights markdown (bold, italic, inline code)
+ * - Formats diff blocks with colored highlighting
+ * - Outputs <details> blocks as quote with bold header
+ * - Wraps long lines according to terminal width
  */
 function formatCommentBody(body: string, indent: string): { lines: string[]; hasSuggestion: boolean } {
   const lines: string[] = [];
-  let hasSuggestion = false;
-
-  // 1. Парсим HTML <details> блоки
   const { text: mainText, details } = parseDetailsBlocks(body);
-
-  // 2. Проверяем есть ли suggestion блок
   const suggestionMatch = mainText.match(/```suggestion\n([\s\S]*?)```/);
 
+  let hasSuggestion = false;
   if (suggestionMatch) {
     hasSuggestion = true;
     const code = suggestionMatch[1];
     const restText = mainText.replace(/```suggestion\n[\s\S]*?```/, '').trim();
-
-    // Показываем suggestion с подсветкой
-    lines.push(`${indent}    ${colors.green('suggestion:')}`);
-
-    try {
-      const highlighted = useColors
-        ? highlight(code, { language: 'typescript', ignoreIllegals: true })
-        : code;
-
-      highlighted.split('\n').forEach(line => {
-        lines.push(`${indent}      ${line}`);
-      });
-    } catch {
-      code.split('\n').forEach(line => {
-        lines.push(`${indent}      ${colors.dim(line)}`);
-      });
-    }
-
-    if (restText) {
-      lines.push('');
-      const formatted = formatMarkdown(restText);
-      lines.push(...wrapText(formatted, `${indent}    `));
-    }
+    lines.push(...formatSuggestionBlock(code, restText, indent));
   } else {
-    // 3. Проверяем на diff блок
-    const diffMatch = mainText.match(/```diff\n([\s\S]*?)```/);
-
-    if (diffMatch) {
-      const code = diffMatch[1];
-      const restText = mainText.replace(/```diff\n[\s\S]*?```/, '').trim();
-
-      // Показываем текст перед diff с переносом
-      if (restText) {
-        const formatted = formatMarkdown(restText);
-        lines.push(...wrapText(formatted, `${indent}    `));
-      }
-
-      // Показываем diff с подсветкой (без переноса - код не переносим)
-      if (restText) lines.push(''); // Пустая строка только если был текст перед diff
-      lines.push(...formatDiffBlock(code, indent));
-    } else {
-      // 4. Просто форматируем markdown с переносом
-      const formatted = formatMarkdown(mainText);
-      lines.push(...wrapText(formatted, `${indent}    `));
-    }
+    lines.push(...formatMainContent(mainText, indent));
   }
 
-  // 5. Выводим <details> блоки как quote (с отступом)
+  // Output <details> blocks as quote (with indent)
   details.forEach(detail => {
     lines.push('');
 
-    // Summary как жирный заголовок с отступом (с переносом)
+    // Summary as bold header with indent (with wrapping)
     const summaryFormatted = colors.bold('> ' + detail.summary);
     lines.push(...wrapText(summaryFormatted, `${indent}    `));
     lines.push(`${indent}    >`);
 
-    // Проверяем на diff в details
+    // Check for diff in details
     const diffMatch = detail.content.match(/```diff\n([\s\S]*?)```/);
 
     if (diffMatch) {
@@ -237,12 +244,12 @@ function formatCommentBody(body: string, indent: string): { lines: string[]; has
         lines.push(`${indent}    >`);
       }
 
-      // Diff в quote (без переноса)
+      // Diff in quote (no wrapping)
       formatDiffBlock(code, indent).forEach(line => {
         lines.push(`${indent}    >` + line.slice(indent.length + 4));
       });
     } else {
-      // Обычный текст в quote с переносом
+      // Plain text in quote with wrapping
       const formatted = formatMarkdown(detail.content);
       lines.push(...wrapText(formatted, `${indent}    > `));
     }
@@ -367,14 +374,17 @@ function groupByFile(
   return result;
 }
 
-export function formatPlainOutput(
-  prMeta: { number: number; title: string; state: string; author: string; files: unknown[] },
-  statePath: string,
-  processedThreads: ProcessedThread[],
-  botSummaries: BotSummary[],
-  allThreads: Array<{ isResolved: boolean }>,
-  filter: (key: string) => boolean
-): string {
+export interface FormatPlainOutputOptions {
+  prMeta: { number: number; title: string; state: string; author: string; files: unknown[] };
+  statePath: string;
+  processedThreads: ProcessedThread[];
+  botSummaries: BotSummary[];
+  allThreads: Array<{ isResolved: boolean }>;
+  filter: (key: string) => boolean;
+}
+
+export function formatPlainOutput(options: FormatPlainOutputOptions): string {
+  const { prMeta, processedThreads, botSummaries, allThreads, filter } = options;
   const lines: string[] = [];
 
   // Header
@@ -401,7 +411,7 @@ export function formatPlainOutput(
   fileGroups.forEach((group, idx) => {
     if (idx > 0) lines.push('');
 
-    // Вычисляем длину: эмодзи (2) + пробел (1) + длина пути, минимум 40
+    // Calculate length: emoji (2) + space (1) + path length, minimum 40
     const fileNameLength = Math.max(40, 3 + group.path.length);
     const separator = '─'.repeat(Math.min(fileNameLength, terminalWidth));
     lines.push(separator);
@@ -412,7 +422,7 @@ export function formatPlainOutput(
     group.items.forEach((item, itemIdx) => {
       if (itemIdx > 0) {
         lines.push('');
-        // Разделитель между элементами: отступ (2) + точки, минимум 38
+        // Item separator: indent (2) + dots, minimum 38
         const itemSeparatorLength = Math.max(38, Math.min(fileNameLength - 2, terminalWidth - 2));
         lines.push(colors.dim('  ' + '·'.repeat(itemSeparatorLength)));
         lines.push('');

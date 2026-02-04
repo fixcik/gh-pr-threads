@@ -11,7 +11,8 @@ import {
   clearMark,
   markResolved
 } from './manager.js';
-import type { State, ProcessedThread, Nitpick } from '../types.js';
+import type { State } from '../types.js';
+import { buildProcessedThread, buildNitpick } from '../__fixtures__/factories.js';
 
 // Mock fs module
 vi.mock('fs');
@@ -174,16 +175,8 @@ describe('registerIds', () => {
       idMap: {}
     };
 
-    const threads: ProcessedThread[] = [
-      {
-        thread_id: 'PRRT_abc123',
-        comments: [],
-        status: undefined,
-        isResolved: false,
-        isOutdated: false,
-        path: 'test.ts',
-        line: null
-      }
+    const threads = [
+      buildProcessedThread({ thread_id: 'PRRT_abc123' })
     ];
 
     registerIds(state, threads, []);
@@ -204,8 +197,8 @@ describe('registerIds', () => {
       idMap: {}
     };
 
-    const nitpicks: Nitpick[] = [
-      { id: 'src/index.ts:42', path: 'src/index.ts', line: '42', content: 'test' }
+    const nitpicks = [
+      buildNitpick({ id: 'src/index.ts:42', path: 'src/index.ts', line: '42' })
     ];
 
     registerIds(state, [], nitpicks);
@@ -225,20 +218,12 @@ describe('registerIds', () => {
       idMap: {}
     };
 
-    const threads: ProcessedThread[] = [
-      {
-        thread_id: 'PRRT_thread1',
-        comments: [],
-        status: undefined,
-        isResolved: false,
-        isOutdated: false,
-        path: 'test.ts',
-        line: null
-      }
+    const threads = [
+      buildProcessedThread({ thread_id: 'PRRT_thread1' })
     ];
 
-    const nitpicks: Nitpick[] = [
-      { id: 'file.ts:10', path: 'file.ts', line: '10', content: 'test' }
+    const nitpicks = [
+      buildNitpick({ id: 'file.ts:10', path: 'file.ts', line: '10' })
     ];
 
     registerIds(state, threads, nitpicks);
