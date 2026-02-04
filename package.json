@@ -26,14 +26,22 @@
     "publish:major": "npm version major && npm publish && git push origin master && git push origin --tags"
   },
   "dependencies": {
+    "cli-highlight": "^2.1.11",
     "commander": "^12.0.0",
     "debug": "^4.4.3"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/debug": "^4.1.12",
     "@types/node": "^20.11.0",
+    "@vitest/coverage-v8": "^4.0.18",
+    "eslint": "^9.39.2",
+    "nano-staged": "^0.9.0",
+    "simple-git-hooks": "^2.13.1",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.54.0",
+    "vitest": "^4.0.18"
   },
   "engines": {
     "node": ">=18"

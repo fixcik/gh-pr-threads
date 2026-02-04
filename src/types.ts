@@ -9,7 +9,7 @@ export interface State {
 export interface ThreadComment {
   id: string;
   body: string;
-  author: { login: string };
+  author: { login: string; __typename?: string };
   url: string;
   createdAt: string;
   path: string;
@@ -69,7 +69,7 @@ export interface PRData {
           endCursor: string | null;
         };
         nodes: Array<{
-          author: { login: string };
+          author: { login: string; __typename?: string };
           body: string;
           url: string;
           state: string;
@@ -85,7 +85,7 @@ export interface PRData {
         nodes: Array<{
           id: string;
           body: string;
-          author: { login: string };
+          author: { login: string; __typename?: string };
           url: string;
           createdAt: string;
         }>;
@@ -103,6 +103,8 @@ export interface Args {
   includeDone: boolean;
   withResolved: boolean;
   format: 'plain' | 'json';
+  ignoreBots: boolean;
+  threadId?: string;
 }
 
 export interface Nitpick {
@@ -136,18 +138,6 @@ export interface BotSummary {
   nitpicks?: Nitpick[];
 }
 
-export interface UserComment {
-  id: string;
-  author: string;
-  body: string;
-  url: string;
-  createdAt: string;
-  thread_id: string;
-  file: string;
-  line: number | null;
-  isResolved: boolean;
-  isOutdated: boolean;
-}
 
 export interface Output {
   pr: {
@@ -157,19 +147,16 @@ export interface Output {
     author: string;
     isDraft: boolean;
     mergeable: string;
-    files: any[];
+    files: unknown[];
   };
   statePath: string;
   threads?: ProcessedThread[];
   botSummaries?: BotSummary[];
-  userComments?: UserComment[];
   summary: {
     totalThreads: number;
     filteredCount: number;
     unresolvedCount: number;
     botSummariesCount: number;
     nitpicksCount: number;
-    userCommentsCount: number;
-    userCommentsByAuthor: Record<string, number>;
   };
 }
