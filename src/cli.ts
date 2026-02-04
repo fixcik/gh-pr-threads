@@ -2,7 +2,11 @@ import { Command } from 'commander';
 import { execSync } from 'child_process';
 import type { Args } from './types.js';
 import * as fs from 'fs';
+import * as path from 'path';
 import { getStatePath } from './state/manager.js';
+import { runMarkCommand, MarkStatus } from './commands/mark.js';
+import { runReplyCommand } from './commands/reply.js';
+import { runResolveCommand } from './commands/resolve.js';
 
 export function parseCliArgs(): Args {
   const program = new Command();
@@ -20,9 +24,11 @@ export function parseCliArgs(): Args {
     .option('--number <number>', 'PR number', parseInt)
     .option('--all', 'Show all threads including resolved ones', false)
     .option('--include-done', 'Include threads/nitpicks marked as done or skip', false)
-    .option('--only <types>', 'Comma-separated list: threads,nitpicks,files,summaries,userComments')
+    .option('--only <types>', 'Comma-separated list: threads,nitpicks,files,summaries')
     .option('--with-resolved', 'Include resolved threads/comments (default: only unresolved)', false)
+    .option('--ignore-bots', 'Exclude all bot comments and summaries', false)
     .option('--json', 'Output in JSON format (default: plain text)', false)
+    .option('--thread <id>', 'Show specific thread by short ID (bypasses all filters)')
     .action(() => {});
 
   // Clear command
@@ -56,22 +62,86 @@ export function parseCliArgs(): Args {
           owner = parts[0];
           repo = parts[1];
           number = prInfo.number;
-        } catch (e) {
+        } catch {
           console.error('Error: Could not detect PR. Please provide a PR URL or use --owner, --repo, --number options.');
           process.exit(1);
         }
       }
 
       const statePath = getStatePath(owner, repo, number);
+      const stateDir = path.dirname(statePath);
+      const imagesDir = path.join(stateDir, 'images');
+
+      let cleared = false;
 
       if (fs.existsSync(statePath)) {
         fs.unlinkSync(statePath);
         console.log(`State cleared for PR ${owner}/${repo}#${number}`);
         console.log(`Removed: ${statePath}`);
-      } else {
+        cleared = true;
+      }
+
+      if (fs.existsSync(imagesDir)) {
+        fs.rmSync(imagesDir, { recursive: true });
+        console.log(`Removed images: ${imagesDir}`);
+        cleared = true;
+      }
+
+      if (!cleared) {
         console.log(`No state file found for PR ${owner}/${repo}#${number}`);
       }
 
+      process.exit(0);
+    });
+
+  // Mark command
+  program
+    .command('mark')
+    .description('Mark thread/nitpick as done, skip, later, or clear the mark')
+    .argument('<id>', 'Thread or nitpick short ID (6 characters)')
+    .argument('<status>', 'Status: done, skip, later, or clear')
+    .option('--note <text>', 'Optional note')
+    .action(async (id, status, options) => {
+      const validStatuses = ['done', 'skip', 'later', 'clear'];
+      if (!validStatuses.includes(status)) {
+        console.error(`Error: Invalid status '${status}'. Must be one of: ${validStatuses.join(', ')}`);
+        process.exit(1);
+      }
+      await runMarkCommand(id, status as MarkStatus, options.note);
+      process.exit(0);
+    });
+
+  // Reply command
+  program
+    .command('reply')
+    .description('Reply to a review thread')
+    .argument('<id>', 'Thread short ID (6 characters)')
+    .argument('<message>', 'Reply message')
+    .option('--mark <status>', 'Also mark as done/skip/later after replying')
+    .action(async (id, message, options) => {
+      const validStatuses = ['done', 'skip', 'later'];
+      if (options.mark && !validStatuses.includes(options.mark)) {
+        console.error(`Error: Invalid mark status '${options.mark}'. Must be one of: ${validStatuses.join(', ')}`);
+        process.exit(1);
+      }
+      await runReplyCommand(id, message, options.mark);
+      process.exit(0);
+    });
+
+  // Resolve command
+  program
+    .command('resolve')
+    .description('Resolve a review thread on GitHub')
+    .argument('<id>', 'Thread short ID (6 characters)')
+    .option('--reply <message>', 'Add reply before resolving')
+    .option('--mark <status>', 'Also mark as done/skip/later after resolving')
+    .action(async (id, options) => {
+      const validStatuses = ['done', 'skip', 'later'];
+      if (options.mark && !validStatuses.includes(options.mark)) {
+        console.error(`Error: Invalid mark status '${options.mark}'. Must be one of: ${validStatuses.join(', ')}`);
+        process.exit(1);
+      }
+      await runResolveCommand(id, options.reply, options.mark);
       process.exit(0);
     });
 
@@ -102,9 +172,9 @@ export function parseCliArgs(): Args {
       owner = parts[0];
       repo = parts[1];
       number = prInfo.number;
-    } catch (e) {
+    } catch {
       console.error('Error: Could not detect PR. Please provide a PR URL or use --owner, --repo, --number options.');
-      console.error('Usage: gh-pr-threads <PR_URL> [--all] [--include-done] [--only=threads,nitpicks,files,summaries,userComments]');
+      console.error('Usage: gh-pr-threads <PR_URL> [--all] [--include-done] [--only=threads,nitpicks,files,summaries] [--ignore-bots]');
       process.exit(1);
     }
   }
@@ -119,6 +189,8 @@ export function parseCliArgs(): Args {
     only,
     includeDone: options.includeDone,
     withResolved: options.withResolved,
-    format: options.json ? 'json' : 'plain'
+    format: options.json ? 'json' : 'plain',
+    ignoreBots: options.ignoreBots || false,
+    threadId: options.thread
   };
 }

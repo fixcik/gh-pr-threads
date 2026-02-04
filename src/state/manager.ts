@@ -20,7 +20,7 @@ export function loadState(statePath: string): State {
         loaded.idMap = {};
       }
       return loaded;
-    } catch (e) {
+    } catch {
       // Ignore parse errors
     }
   }
@@ -74,15 +74,15 @@ export function resolveId(state: State, shortOrFullId: string): string | undefin
 }
 
 /**
- * Marks a thread or nitpick as resolved (done/skip)
+ * Marks a thread or nitpick with a status
  * @param shortOrFullId short or full ID
- * @param status 'done' or 'skip'
+ * @param status 'done', 'skip', or 'later'
  * @param note optional note
  */
-export function markResolved(
+export function markItem(
   state: State,
   shortOrFullId: string,
-  status: 'done' | 'skip',
+  status: 'done' | 'skip' | 'later',
   note?: string
 ): boolean {
   const fullId = resolveId(state, shortOrFullId);
@@ -91,25 +91,42 @@ export function markResolved(
     return false;
   }
 
-  // Check threads
-  if (state.threads[fullId] !== undefined) {
-    state.threads[fullId] = { status, note };
-    return true;
-  }
-
-  // Check nitpicks
-  if (state.nitpicks[fullId] !== undefined) {
-    state.nitpicks[fullId] = { status, note };
-    return true;
-  }
-
-  // Create new entry
-  // Try to determine type by ID prefix
+  // Determine type by ID format and mark
   if (fullId.startsWith('PRRT_') || fullId.includes('/comments/')) {
     state.threads[fullId] = { status, note };
-    return true;
   } else {
     state.nitpicks[fullId] = { status, note };
-    return true;
   }
+
+  return true;
+}
+
+/**
+ * Clears the mark from a thread or nitpick
+ * @param shortOrFullId short or full ID
+ */
+export function clearMark(state: State, shortOrFullId: string): boolean {
+  const fullId = resolveId(state, shortOrFullId);
+
+  if (!fullId) {
+    return false;
+  }
+
+  // Remove from both collections
+  delete state.threads[fullId];
+  delete state.nitpicks[fullId];
+
+  return true;
+}
+
+/**
+ * @deprecated Use markItem instead
+ */
+export function markResolved(
+  state: State,
+  shortOrFullId: string,
+  status: 'done' | 'skip',
+  note?: string
+): boolean {
+  return markItem(state, shortOrFullId, status, note);
 }

@@ -8,9 +8,9 @@ CLI tool to fetch and filter GitHub Pull Request review threads, comments, and n
 
 ## Features
 
-- 🔍 Fetch all review threads with comments
+- 🔍 Fetch all review threads with comments (from all users)
 - 🤖 Parse nitpicks from CodeRabbit and other bots
-- 👥 Filter user comments (exclude bots)
+- 🚫 Optional bot filtering with `--ignore-bots`
 - 💾 Save comment processing state
 - 🎯 Flexible filtering by data types
 - 📊 Detailed PR statistics
@@ -64,11 +64,11 @@ npx gh-pr-threads
 ### Options
 
 ```bash
-# Show only unresolved items (default)
-npx gh-pr-threads <PR_URL> --only=userComments
+# Show only threads (default shows everything)
+npx gh-pr-threads <PR_URL> --only=threads
 
 # Include resolved threads/comments
-npx gh-pr-threads <PR_URL> --only=userComments --with-resolved
+npx gh-pr-threads <PR_URL> --only=threads --with-resolved
 
 # Show all threads (including resolved review threads)
 npx gh-pr-threads <PR_URL> --all
@@ -80,8 +80,11 @@ npx gh-pr-threads <PR_URL> --include-done
 npx gh-pr-threads <PR_URL> --only=threads,nitpicks
 npx gh-pr-threads <PR_URL> --only=summaries,files
 
+# Exclude all bot comments and summaries
+npx gh-pr-threads <PR_URL> --ignore-bots
+
 # Combine options
-npx gh-pr-threads <PR_URL> --all --include-done --with-resolved --only=threads,userComments
+npx gh-pr-threads <PR_URL> --all --include-done --with-resolved --only=threads --ignore-bots
 ```
 
 ### Manual PR Specification
@@ -111,11 +114,19 @@ This removes the state file, allowing you to restart review processing from scra
 
 ### Data Types (--only)
 
-- `threads` - Review threads with comments
-- `nitpicks` - Nitpicks from CodeRabbit
-- `summaries` - Full summaries from bots
-- `files` - List of changed files
-- `userComments` - Only comments from real users
+- `threads` - Review threads with all comments (from users and bots)
+- `nitpicks` - Nitpicks extracted from CodeRabbit comments
+- `summaries` - Full summaries from bots (CodeRabbit, GitHub Actions, etc.)
+- `files` - List of changed files in PR
+
+**Note:** To see only user comments without bots, use `--only=threads --ignore-bots`
+
+### Bot Filtering
+
+- `--ignore-bots` - Exclude all bot comments, summaries, and nitpicks from output
+- Detects bots by:
+  - GitHub GraphQL API `__typename: "Bot"` field (most reliable)
+  - Known bot usernames: `coderabbitai`, `github-actions`, `sonarqubecloud`, `dependabot`, `renovate`, `greenkeeper`
 
 ### Resolved Status
 
@@ -125,6 +136,8 @@ This removes the state file, allowing you to restart review processing from scra
 - `--include-done` - Include items marked as done or skip in state
 
 ## Output Format
+
+### JSON Format (--json)
 
 ```json
 {
@@ -140,21 +153,19 @@ This removes the state file, allowing you to restart review processing from scra
   "statePath": "/Users/user/.cursor/reviews/owner-repo-123/pr-state.json",
   "threads": [...],
   "botSummaries": [...],
-  "userComments": [...],
   "summary": {
     "totalThreads": 10,
     "filteredCount": 5,
     "unresolvedCount": 3,
     "botSummariesCount": 2,
-    "nitpicksCount": 15,
-    "userCommentsCount": 8,
-    "userCommentsByAuthor": {
-      "reviewer1": 5,
-      "reviewer2": 3
-    }
+    "nitpicksCount": 15
   }
 }
 ```
+
+### Plain Text Format (default)
+
+Grouped by file with syntax highlighting, thread IDs, and clickable URLs.
 
 ## State
 
@@ -261,6 +272,42 @@ gh-pr-threads --help
 
 # To unlink
 npm unlink -g gh-pr-threads
+```
+
+## Development
+
+### Quality Assurance
+
+The project includes automated quality checks:
+
+```bash
+# Run all checks (typecheck, lint, tests)
+npm run check
+
+# Individual checks
+npm run typecheck  # TypeScript type checking
+npm run lint       # ESLint code quality
+npm run lint:fix   # Auto-fix linting issues
+npm test           # Run tests
+npm run test:coverage  # Test coverage report
+```
+
+### Git Hooks
+
+Pre-commit hooks automatically run before each commit:
+- **ESLint** with auto-fix on staged TypeScript files
+- **TypeScript** type checking on the entire project
+
+Hooks are automatically installed on `npm install` via the `prepare` script.
+
+#### Skip Hooks (when needed)
+
+```bash
+# Skip pre-commit hook for a specific commit
+SKIP_SIMPLE_GIT_HOOKS=1 git commit -m "message"
+
+# Or use --no-verify flag
+git commit --no-verify -m "message"
 ```
 
 ## License

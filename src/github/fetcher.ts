@@ -2,18 +2,19 @@ import Debug from 'debug';
 import { runGh } from './client.js';
 import { THREAD_COMMENTS_QUERY } from './queries.js';
 import type { Thread, ThreadComment } from '../types.js';
+import type { PRData, ThreadCommentsData, PageInfo } from './apiTypes.js';
 
 const debug = Debug('gh-pr-threads:fetcher');
 
-export async function fetchAllPages(
+export async function fetchAllPages<T = unknown>(
   owner: string,
   repo: string,
   number: number,
   queryPattern: string,
-  getNodes: (pr: any) => any,
-  getPageInfo: (pr: any) => any
-): Promise<any[]> {
-  const allNodes: any[] = [];
+  getNodes: (pr: PRData['data']['repository']['pullRequest']) => T[],
+  getPageInfo: (pr: PRData['data']['repository']['pullRequest']) => PageInfo
+): Promise<T[]> {
+  const allNodes: T[] = [];
   let cursor: string | null = null;
   let hasNextPage = true;
   let pageCount = 0;
@@ -30,7 +31,7 @@ export async function fetchAllPages(
       `-f query='${queryPattern}'`
     ].filter(Boolean);
 
-    const result = runGh(ghArgs);
+    const result = runGh<PRData>(ghArgs);
     const pr = result.data.repository.pullRequest;
 
     const nodes = getNodes(pr);
@@ -70,14 +71,14 @@ export async function fetchAllThreadComments(
       `-f query='${THREAD_COMMENTS_QUERY}'`
     ];
 
-    const result = runGh(ghArgs);
+    const result = runGh<ThreadCommentsData>(ghArgs);
     const threadData = result.data.repository.pullRequest.reviewThread;
     if (!threadData) break;
 
-    const newComments = threadData.comments.nodes;
+    const newComments = threadData.comments.nodes as ThreadComment[];
     comments.push(...newComments);
     debug(`Thread ${thread.id} page ${pageCount}: fetched ${newComments.length} comments in ${Date.now() - pageStartTime}ms`);
-    
+
     hasNextPage = threadData.comments.pageInfo.hasNextPage;
     cursor = threadData.comments.pageInfo.endCursor;
   }

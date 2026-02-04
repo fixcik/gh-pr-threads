@@ -1,12 +1,11 @@
-import type { Output, ProcessedThread, BotSummary, UserComment } from '../types.js';
+import type { Output, ProcessedThread, BotSummary } from '../types.js';
 
 export function formatOutput(
-  prMeta: any,
+  prMeta: { number: number; title: string; state: string; author: string; files: unknown[]; isDraft: boolean; mergeable: string },
   statePath: string,
   processedThreads: ProcessedThread[],
   botSummaries: BotSummary[],
-  userComments: UserComment[],
-  allThreads: any[],
+  allThreads: Array<{ isResolved: boolean }>,
   filter: (key: string) => boolean
 ): Output {
   const output: Output = {
@@ -15,20 +14,14 @@ export function formatOutput(
     summary: {
       totalThreads: allThreads.length,
       filteredCount: processedThreads.length,
-      unresolvedCount: allThreads.filter((t: any) => !t.isResolved).length,
+      unresolvedCount: allThreads.filter((t) => !t.isResolved).length,
       botSummariesCount: botSummaries.length,
-      nitpicksCount: botSummaries.reduce((acc, s) => acc + (s.nitpicks?.length || 0), 0),
-      userCommentsCount: userComments.length,
-      userCommentsByAuthor: userComments.reduce((acc, c) => {
-        acc[c.author] = (acc[c.author] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>)
+      nitpicksCount: botSummaries.reduce((acc, s) => acc + (s.nitpicks?.length || 0), 0)
     }
   };
 
   if (filter('threads')) output.threads = processedThreads;
   if (filter('summaries') || filter('nitpicks')) output.botSummaries = botSummaries;
-  if (filter('userComments')) output.userComments = userComments;
 
   return output;
 }

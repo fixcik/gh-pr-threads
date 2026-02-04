@@ -1,4 +1,5 @@
 import { findBalancedDetails } from './nitpicks.js';
+import { processImages } from '../utils/images.js';
 
 export function cleanCommentBody(body: string): string {
   const preservedSections = findBalancedDetails(body, /(Nitpick|Additional) comments/);
@@ -29,7 +30,11 @@ export function cleanCommentBody(body: string): string {
 
   const MAX_LENGTH = 15000;
   if (cleaned.length > MAX_LENGTH) {
-    return cleaned.substring(0, MAX_LENGTH) + '\n\n... [TRUNCATED] ...';
+    cleaned = cleaned.substring(0, MAX_LENGTH) + '\n\n... [TRUNCATED] ...';
   }
+
+  // Process images - render inline if terminal supports, otherwise show URL
+  cleaned = processImages(cleaned);
+
   return cleaned;
 }
