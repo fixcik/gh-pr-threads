@@ -1,0 +1,50 @@
+# Archlint configuration for gh-pr-threads
+
+# Global ignore patterns
+ignore:
+  - '**/node_modules/**'
+  - '**/dist/**'
+  - '**/coverage/**'
+  - '**/*.test.ts'
+  - '**/*.spec.ts'
+
+# TypeScript integration
+tsconfig: true
+
+# Entry points for dead code detection
+entry_points:
+  - 'src/index.ts'
+  - 'src/cli.ts'
+
+# Detector rules
+rules:
+  cyclic_dependency: high
+  dead_code: medium
+
+  god_module:
+    severity: medium
+    fan_in: 10
+    fan_out: 10
+
+  high_coupling:
+    severity: medium
+    threshold: 8
+
+  cyclomatic_complexity:
+    severity: medium
+    threshold: 15
+
+# Layer architecture (optional, can be refined after first scan)
+# layers:
+#   - name: commands
+#     pattern: 'src/commands/**'
+#   - name: github
+#     pattern: 'src/github/**'
+#   - name: parsers
+#     pattern: 'src/parsers/**'
+#   - name: state
+#     pattern: 'src/state/**'
+#   - name: output
+#     pattern: 'src/output/**'
+#   - name: utils
+#     pattern: 'src/utils/**'
