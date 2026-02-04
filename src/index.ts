@@ -73,14 +73,14 @@ async function main() {
     // 1. Fetch review threads
     (async () => {
       const t1 = Date.now();
-      const threads = await fetchAllPages(
+      const threads = await fetchAllPages({
         owner,
         repo,
         number,
-        THREADS_QUERY,
-        pr => pr.reviewThreads?.nodes || [],
-        pr => pr.reviewThreads?.pageInfo || { hasNextPage: false, endCursor: null }
-      );
+        queryPattern: THREADS_QUERY,
+        getNodes: pr => pr.reviewThreads?.nodes || [],
+        getPageInfo: pr => pr.reviewThreads?.pageInfo || { hasNextPage: false, endCursor: null }
+      });
       debugTiming(`Threads fetched: ${threads.length} threads in ${Date.now() - t1}ms`);
       return threads;
     })(),
@@ -90,7 +90,14 @@ async function main() {
       // Skip files when targeting specific thread
       if (targetThreadId || !filter('files')) return [];
       const t1 = Date.now();
-      const files = await fetchAllPages(owner, repo, number, FILES_QUERY, pr => pr.files?.nodes || [], pr => pr.files?.pageInfo || { hasNextPage: false, endCursor: null });
+      const files = await fetchAllPages({
+        owner,
+        repo,
+        number,
+        queryPattern: FILES_QUERY,
+        getNodes: pr => pr.files?.nodes || [],
+        getPageInfo: pr => pr.files?.pageInfo || { hasNextPage: false, endCursor: null }
+      });
       debugTiming(`Files fetched: ${files.length} files in ${Date.now() - t1}ms`);
       return files;
     })(),
@@ -100,14 +107,14 @@ async function main() {
       // Skip reviews when targeting specific thread (only needed for bot summaries)
       if (targetThreadId) return [];
       const t1 = Date.now();
-      const reviews = await fetchAllPages(
+      const reviews = await fetchAllPages({
         owner,
         repo,
         number,
-        REVIEWS_QUERY,
-        pr => pr.reviews?.nodes || [],
-        pr => pr.reviews?.pageInfo || { hasNextPage: false, endCursor: null }
-      );
+        queryPattern: REVIEWS_QUERY,
+        getNodes: pr => pr.reviews?.nodes || [],
+        getPageInfo: pr => pr.reviews?.pageInfo || { hasNextPage: false, endCursor: null }
+      });
       debugTiming(`Reviews fetched: ${reviews.length} reviews in ${Date.now() - t1}ms`);
       return reviews;
     })(),
@@ -117,14 +124,14 @@ async function main() {
       // Skip comments when targeting specific thread (only needed for bot summaries)
       if (targetThreadId) return [];
       const t1 = Date.now();
-      const comments = await fetchAllPages(
+      const comments = await fetchAllPages({
         owner,
         repo,
         number,
-        COMMENTS_QUERY,
-        pr => pr.comments?.nodes || [],
-        pr => pr.comments?.pageInfo || { hasNextPage: false, endCursor: null }
-      );
+        queryPattern: COMMENTS_QUERY,
+        getNodes: pr => pr.comments?.nodes || [],
+        getPageInfo: pr => pr.comments?.pageInfo || { hasNextPage: false, endCursor: null }
+      });
       debugTiming(`Comments fetched: ${comments.length} comments in ${Date.now() - t1}ms`);
       return comments;
     })()
@@ -270,10 +277,24 @@ async function main() {
 
   // Output in selected format
   if (format === 'json') {
-    const output = formatOutput(prMeta, statePath, processedThreads, botSummaries, allThreads as Array<{ isResolved: boolean }>, filter);
+    const output = formatOutput({
+      prMeta,
+      statePath,
+      processedThreads,
+      botSummaries,
+      allThreads: allThreads as Array<{ isResolved: boolean }>,
+      filter
+    });
     console.log(JSON.stringify(output, null, 2));
   } else {
-    const output = formatPlainOutput(prMeta, statePath, processedThreads, botSummaries, allThreads as Array<{ isResolved: boolean }>, filter);
+    const output = formatPlainOutput({
+      prMeta,
+      statePath,
+      processedThreads,
+      botSummaries,
+      allThreads: allThreads as Array<{ isResolved: boolean }>,
+      filter
+    });
     console.log(output);
   }
 }

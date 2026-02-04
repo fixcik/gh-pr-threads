@@ -1,5 +1,4 @@
 import { Command } from 'commander';
-import { execSync } from 'child_process';
 import type { Args } from './types.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -7,6 +6,7 @@ import { getStatePath } from './state/manager.js';
 import { runMarkCommand, MarkStatus } from './commands/mark.js';
 import { runReplyCommand } from './commands/reply.js';
 import { runResolveCommand } from './commands/resolve.js';
+import { parsePRInfo } from './utils/pr.js';
 
 export function parseCliArgs(): Args {
   const program = new Command();
@@ -40,58 +40,36 @@ export function parseCliArgs(): Args {
     .option('--repo <repo>', 'Repository name')
     .option('--number <number>', 'PR number', parseInt)
     .action((url, options) => {
-      let owner = options.owner || '';
-      let repo = options.repo || '';
-      let number = options.number || 0;
+      try {
+        const { owner, repo, number } = parsePRInfo(url, options);
+        const statePath = getStatePath(owner, repo, number);
+        const stateDir = path.dirname(statePath);
+        const imagesDir = path.join(stateDir, 'images');
 
-      // Parse URL if provided
-      if (url && url.startsWith('https://github.com/')) {
-        const parts = url.replace('https://github.com/', '').split('/');
-        owner = parts[0];
-        repo = parts[1];
-        if (parts[2] === 'pull') {
-          number = parseInt(parts[3], 10);
+        let cleared = false;
+
+        if (fs.existsSync(statePath)) {
+          fs.unlinkSync(statePath);
+          console.log(`State cleared for PR ${owner}/${repo}#${number}`);
+          console.log(`Removed: ${statePath}`);
+          cleared = true;
         }
-      }
 
-      // Auto-detect PR from current repo if not provided
-      if (!owner || !repo || !number) {
-        try {
-          const prInfo = JSON.parse(execSync('gh pr view --json number,url', { encoding: 'utf8' }));
-          const parts = prInfo.url.replace('https://github.com/', '').split('/');
-          owner = parts[0];
-          repo = parts[1];
-          number = prInfo.number;
-        } catch {
-          console.error('Error: Could not detect PR. Please provide a PR URL or use --owner, --repo, --number options.');
-          process.exit(1);
+        if (fs.existsSync(imagesDir)) {
+          fs.rmSync(imagesDir, { recursive: true });
+          console.log(`Removed images: ${imagesDir}`);
+          cleared = true;
         }
+
+        if (!cleared) {
+          console.log(`No state file found for PR ${owner}/${repo}#${number}`);
+        }
+
+        process.exit(0);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+        process.exit(1);
       }
-
-      const statePath = getStatePath(owner, repo, number);
-      const stateDir = path.dirname(statePath);
-      const imagesDir = path.join(stateDir, 'images');
-
-      let cleared = false;
-
-      if (fs.existsSync(statePath)) {
-        fs.unlinkSync(statePath);
-        console.log(`State cleared for PR ${owner}/${repo}#${number}`);
-        console.log(`Removed: ${statePath}`);
-        cleared = true;
-      }
-
-      if (fs.existsSync(imagesDir)) {
-        fs.rmSync(imagesDir, { recursive: true });
-        console.log(`Removed images: ${imagesDir}`);
-        cleared = true;
-      }
-
-      if (!cleared) {
-        console.log(`No state file found for PR ${owner}/${repo}#${number}`);
-      }
-
-      process.exit(0);
     });
 
   // Mark command
@@ -150,47 +128,25 @@ export function parseCliArgs(): Args {
   const options = program.opts();
   const url = program.args[0];
 
-  let owner = options.owner || '';
-  let repo = options.repo || '';
-  let number = options.number || 0;
+  try {
+    const { owner, repo, number } = parsePRInfo(url, options);
+    const only = options.only ? options.only.split(',').map((s: string) => s.trim()) : [];
 
-  // Parse URL if provided
-  if (url && url.startsWith('https://github.com/')) {
-    const parts = url.replace('https://github.com/', '').split('/');
-    owner = parts[0];
-    repo = parts[1];
-    if (parts[2] === 'pull') {
-      number = parseInt(parts[3], 10);
-    }
+    return {
+      owner,
+      repo,
+      number,
+      showAll: options.all,
+      only,
+      includeDone: options.includeDone,
+      withResolved: options.withResolved,
+      format: options.json ? 'json' : 'plain',
+      ignoreBots: options.ignoreBots || false,
+      threadId: options.thread
+    };
+  } catch (error) {
+    console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    console.error('Usage: gh-pr-threads <PR_URL> [--all] [--include-done] [--only=threads,nitpicks,files,summaries] [--ignore-bots]');
+    process.exit(1);
   }
-
-  // Auto-detect PR from current repo if not provided
-  if (!owner || !repo || !number) {
-    try {
-      const prInfo = JSON.parse(execSync('gh pr view --json number,url', { encoding: 'utf8' }));
-      const parts = prInfo.url.replace('https://github.com/', '').split('/');
-      owner = parts[0];
-      repo = parts[1];
-      number = prInfo.number;
-    } catch {
-      console.error('Error: Could not detect PR. Please provide a PR URL or use --owner, --repo, --number options.');
-      console.error('Usage: gh-pr-threads <PR_URL> [--all] [--include-done] [--only=threads,nitpicks,files,summaries] [--ignore-bots]');
-      process.exit(1);
-    }
-  }
-
-  const only = options.only ? options.only.split(',').map((s: string) => s.trim()) : [];
-
-  return {
-    owner,
-    repo,
-    number,
-    showAll: options.all,
-    only,
-    includeDone: options.includeDone,
-    withResolved: options.withResolved,
-    format: options.json ? 'json' : 'plain',
-    ignoreBots: options.ignoreBots || false,
-    threadId: options.thread
-  };
 }

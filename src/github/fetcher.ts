@@ -6,14 +6,17 @@ import type { PRData, ThreadCommentsData, PageInfo } from './apiTypes.js';
 
 const debug = Debug('gh-pr-threads:fetcher');
 
-export async function fetchAllPages<T = unknown>(
-  owner: string,
-  repo: string,
-  number: number,
-  queryPattern: string,
-  getNodes: (pr: PRData['data']['repository']['pullRequest']) => T[],
-  getPageInfo: (pr: PRData['data']['repository']['pullRequest']) => PageInfo
-): Promise<T[]> {
+export interface FetchPagesOptions<T> {
+  owner: string;
+  repo: string;
+  number: number;
+  queryPattern: string;
+  getNodes: (pr: PRData['data']['repository']['pullRequest']) => T[];
+  getPageInfo: (pr: PRData['data']['repository']['pullRequest']) => PageInfo;
+}
+
+export async function fetchAllPages<T = unknown>(options: FetchPagesOptions<T>): Promise<T[]> {
+  const { owner, repo, number, queryPattern, getNodes, getPageInfo } = options;
   const allNodes: T[] = [];
   let cursor: string | null = null;
   let hasNextPage = true;

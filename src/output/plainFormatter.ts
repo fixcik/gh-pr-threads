@@ -27,7 +27,7 @@ interface FileGroup {
 }
 
 /**
- * Удаляет ANSI escape коды для подсчета видимой длины строки
+ * Removes ANSI escape codes to calculate visible string length
  */
 function stripAnsi(str: string): string {
   // eslint-disable-next-line no-control-regex
@@ -35,7 +35,7 @@ function stripAnsi(str: string): string {
 }
 
 /**
- * Переносит текст с учетом ширины терминала и отступов
+ * Wraps text according to terminal width and indentation
  */
 function wrapText(text: string, indent: string, maxWidth: number = terminalWidth): string[] {
   const lines: string[] = [];

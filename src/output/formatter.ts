@@ -1,13 +1,16 @@
 import type { Output, ProcessedThread, BotSummary } from '../types.js';
 
-export function formatOutput(
-  prMeta: { number: number; title: string; state: string; author: string; files: unknown[]; isDraft: boolean; mergeable: string },
-  statePath: string,
-  processedThreads: ProcessedThread[],
-  botSummaries: BotSummary[],
-  allThreads: Array<{ isResolved: boolean }>,
-  filter: (key: string) => boolean
-): Output {
+export interface FormatOutputOptions {
+  prMeta: { number: number; title: string; state: string; author: string; files: unknown[]; isDraft: boolean; mergeable: string };
+  statePath: string;
+  processedThreads: ProcessedThread[];
+  botSummaries: BotSummary[];
+  allThreads: Array<{ isResolved: boolean }>;
+  filter: (key: string) => boolean;
+}
+
+export function formatOutput(options: FormatOutputOptions): Output {
+  const { prMeta, statePath, processedThreads, botSummaries, allThreads, filter } = options;
   const output: Output = {
     pr: prMeta,
     statePath,
