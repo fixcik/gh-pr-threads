@@ -274,42 +274,6 @@ gh-pr-threads --help
 npm unlink -g gh-pr-threads
 ```
 
-## Development
-
-### Quality Assurance
-
-The project includes automated quality checks:
-
-```bash
-# Run all checks (typecheck, lint, tests)
-npm run check
-
-# Individual checks
-npm run typecheck  # TypeScript type checking
-npm run lint       # ESLint code quality
-npm run lint:fix   # Auto-fix linting issues
-npm test           # Run tests
-npm run test:coverage  # Test coverage report
-```
-
-### Git Hooks
-
-Pre-commit hooks automatically run before each commit:
-- **ESLint** with auto-fix on staged TypeScript files
-- **TypeScript** type checking on the entire project
-
-Hooks are automatically installed on `npm install` via the `prepare` script.
-
-#### Skip Hooks (when needed)
-
-```bash
-# Skip pre-commit hook for a specific commit
-SKIP_SIMPLE_GIT_HOOKS=1 git commit -m "message"
-
-# Or use --no-verify flag
-git commit --no-verify -m "message"
-```
-
 ## License
 
 MIT

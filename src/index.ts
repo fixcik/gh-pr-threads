@@ -168,7 +168,9 @@ async function main() {
         }
         // Check if targetThreadId is in path:line format
         if (target.includes(':') && target.includes('/')) {
-          const [path, lineRange] = target.split(':');
+          const lastColonIdx = target.lastIndexOf(':');
+          const path = target.slice(0, lastColonIdx);
+          const lineRange = target.slice(lastColonIdx + 1);
           const [startLine] = lineRange.split('-').map(Number);
           debug(`Checking thread: path=${t.path}, line=${t.line} against path=${path}, startLine=${startLine}`);
           if (t.path === path && t.line === startLine) {
