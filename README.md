@@ -128,6 +128,50 @@ This removes the state file, allowing you to restart review processing from scra
   - GitHub GraphQL API `__typename: "Bot"` field (most reliable)
   - Known bot usernames: `coderabbitai`, `github-actions`, `sonarqubecloud`, `dependabot`, `renovate`, `greenkeeper`
 
+### CodeRabbit Nitpicks Extraction
+
+The tool automatically extracts nitpicks from CodeRabbit bot comments by parsing structured HTML `<details>` blocks:
+
+**How it works:**
+1. Searches for `<details>` blocks with summary matching "Nitpick comments" or "Additional comments"
+2. Within these blocks, finds nested `<details>` blocks for each file (e.g., `src/file.ts (5)`)
+3. Extracts individual nitpicks formatted as `` `10-15`: Fix this issue``
+4. Generates unique IDs based on file path and line number for state tracking
+
+**Example CodeRabbit comment structure:**
+```html
+<details>
+  <summary>Nitpick comments (10)</summary>
+  <details>
+    <summary>src/index.ts (3)</summary>
+    <blockquote>
+      `45-47`: Consider using const instead of let
+      `89`: Add JSDoc comment
+      `120-125`: Extract this logic into a helper function
+    </blockquote>
+  </details>
+</details>
+```
+
+**Access nitpicks:**
+```bash
+# Get all CodeRabbit nitpicks
+gh-pr-threads <PR_URL> --only=nitpicks
+
+# Exclude nitpicks already marked as done
+gh-pr-threads <PR_URL> --only=nitpicks
+
+# Include processed nitpicks
+gh-pr-threads <PR_URL> --only=nitpicks --include-done
+```
+
+Each nitpick includes:
+- **path**: File path (e.g., `src/index.ts`)
+- **line**: Line number or range (e.g., `45` or `45-47`)
+- **content**: Nitpick description
+- **id**: Unique identifier for state tracking
+- **status**: Current processing status (if marked)
+
 ### Resolved Status
 
 - **Default**: Only unresolved items are returned
