@@ -77,20 +77,69 @@ npm test -- src/utils/shortId.test.ts
 
 Tests are co-located with source files using the `.test.ts` suffix. The project uses `vitest-mock-extended` for type-safe mocking.
 
+## Code Standards
+
+### Language & Comments
+- **All code comments MUST be in English only**
+- Variable names, function names, and type names use English
+- Error messages and user-facing text use English
+- Documentation (README, CLAUDE.md) is in English
+
+### Code Quality Tools
+```bash
+# Run archlint to check architectural quality
+npx @archlinter/cli scan
+
+# Check TypeScript compilation
+npm run typecheck
+
+# Run linter
+npm run lint
+npm run lint:fix
+
+# Run all checks
+npm run check  # typecheck + lint + test
+```
+
+**Archlint Configuration:**
+- Configured in `.archlint.yaml`
+- Current quality score: **8.8/10** (Good)
+- Ignores test files and generated code
+- Enforces: no dead code, no cyclic dependencies, low coupling, manageable complexity
+
+### Best Practices
+- Use options objects for functions with 4+ parameters
+- Break down functions with high cognitive complexity (>20) into helpers
+- Extract duplicated code into shared utilities
+- Keep function cyclomatic complexity below 30
+- Write tests for all new features and bug fixes
+
 ## Architecture
 
 ### Data Flow
 1. **CLI parsing** (`src/cli.ts`): Parses arguments, auto-detects PR from `gh pr view` if URL not provided
+   - Uses shared `parsePRInfo` utility to eliminate code duplication
 2. **GitHub API** (`src/github/`):
    - `client.ts`: Wraps `gh api graphql` calls
    - `queries.ts`: GraphQL query definitions for threads, files, reviews, comments, metadata
-   - `fetcher.ts`: Pagination logic (`fetchAllPages`, `fetchAllThreadComments`)
+   - `fetcher.ts`: Pagination logic with options pattern (`FetchPagesOptions` interface)
 3. **Parsing** (`src/parsers/`):
    - `nitpicks.ts`: Extracts CodeRabbit nitpick items from bot comments
+     - `findBalancedDetails`: Parses nested HTML `<details>` tags (refactored into smaller functions)
+     - `findBalancedDetailsEnd`: Handles nested tag balancing
+     - `extractDetailsBlock`: Extracts summary and content
    - `comments.ts`: Cleans comment bodies (strips HTML, etc.)
-4. **State management** (`src/state/manager.ts`): Loads/saves PR processing state to `~/.cursor/reviews/{owner}-{repo}-{number}/pr-state.json`
-5. **Output** (`src/output/formatter.ts`): Builds final JSON output with summary statistics
-6. **Main** (`src/index.ts`): Orchestrates the entire flow
+4. **State management** (`src/state/manager.ts`): Loads/saves PR processing state
+5. **Output** (`src/output/`):
+   - `formatter.ts`: Builds JSON output (uses `FormatOutputOptions` interface)
+   - `plainFormatter.ts`: Formats plain text output with syntax highlighting
+     - `formatSuggestionBlock`: Handles code suggestions
+     - `formatMainContent`: Processes diff blocks and markdown
+     - `formatDetailBlock`: Formats HTML details as quotes
+6. **Commands** (`src/commands/`):
+   - `reply.ts`, `resolve.ts`, `mark.ts`: Thread management commands
+   - `shared.ts`: Common utilities for command context and validation
+7. **Main** (`src/index.ts`): Orchestrates the entire flow with parallel API fetching
 
 ### Key Design Decisions
 
@@ -98,9 +147,23 @@ Tests are co-located with source files using the `.test.ts` suffix. The project 
 - **GraphQL Pagination**: All PR data is fetched via GitHub GraphQL API with cursor-based pagination to handle large PRs
 - **Bot Detection**: Hardcoded list of bot usernames (`coderabbitai`, `github-actions`, `sonarqubecloud`, `dependabot`) for filtering
 - **Filtering Modes**: `--only` option allows selecting specific data types (`threads`, `nitpicks`, `files`, `summaries`, `userComments`)
+- **Options Pattern**: Functions with many parameters use options objects for better readability and maintainability
+- **Shared Utilities**: Common logic extracted into `src/utils/pr.ts` and `src/commands/shared.ts` to eliminate duplication
+- **Function Decomposition**: Complex functions broken down into smaller, focused helpers for better cognitive complexity
 
-### Type System (`src/types.ts`)
+### Architecture Quality
 
+The project maintains high architectural standards with **8.8/10 quality score** from archlint:
+- ✅ No code duplication
+- ✅ No dead code or unused symbols
+- ✅ No cyclic dependencies
+- ✅ Low coupling between modules
+- ✅ Options pattern for complex function signatures
+- ✅ Helper functions for complex logic decomposition
+
+### Type System
+
+**Core Types (`src/types.ts`):**
 - **State**: Persistent storage schema for threads/nitpicks status
 - **Thread**: Review thread with comments from GitHub API
 - **PRData**: Full GraphQL response shape
@@ -108,6 +171,17 @@ Tests are co-located with source files using the `.test.ts` suffix. The project 
 - **BotSummary**: Bot comment with optional nitpicks array
 - **UserComment**: Comment from non-bot user with thread context
 - **Output**: Final JSON output structure
+- **Nitpick**: Extracted nitpick item from bot comments
+
+**Options Interfaces:**
+- **`FetchPagesOptions<T>`** (`src/github/fetcher.ts`): Parameters for GraphQL pagination
+- **`FormatOutputOptions`** (`src/output/formatter.ts`): Parameters for JSON output formatting
+- **`FormatPlainOutputOptions`** (`src/output/plainFormatter.ts`): Parameters for plain text formatting
+
+**Utility Types:**
+- **`PRInfo`** (`src/utils/pr.ts`): Owner, repo, and PR number tuple
+- **`CommandContext`** (`src/commands/shared.ts`): Shared context for command execution
+- **`DetailsBlock`** (`src/parsers/nitpicks.ts`): Parsed HTML `<details>` block structure
 
 ## GitHub CLI Dependency
 
