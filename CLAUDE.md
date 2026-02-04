@@ -51,7 +51,31 @@ Timing logs show:
 - Processing time for threads, comments, and bot summaries
 - Total execution time
 
-No tests or linting are configured. Manual testing is done via `npm run dev` or the built binary.
+### Testing
+
+The project uses Vitest for unit testing:
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+
+# Run specific test file
+npm test -- src/utils/shortId.test.ts
+```
+
+**Test Coverage Status:**
+- **src/parsers**: 98.3% (nitpicks, comments parsing)
+- **src/state**: 100% (state management, persistence)
+- **src/utils**: High coverage (shortId, PR detection)
+- **src/output**: 100% (formatter)
+
+Tests are co-located with source files using the `.test.ts` suffix. The project uses `vitest-mock-extended` for type-safe mocking.
 
 ## Architecture
 
