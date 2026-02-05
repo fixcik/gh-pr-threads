@@ -8,6 +8,17 @@ import { runReplyCommand } from './commands/reply.js';
 import { runResolveCommand } from './commands/resolve.js';
 import { parsePRInfo } from './utils/pr.js';
 
+const MARK_STATUSES = ['done', 'skip', 'later'] as const;
+type MarkStatusType = typeof MARK_STATUSES[number];
+
+function validateMarkStatus(status: string | undefined): status is MarkStatusType {
+  if (status && !MARK_STATUSES.includes(status as MarkStatusType)) {
+    console.error(`Error: Invalid mark status '${status}'. Must be one of: ${MARK_STATUSES.join(', ')}`);
+    process.exit(1);
+  }
+  return true;
+}
+
 export function parseCliArgs(): Args {
   const program = new Command();
 
@@ -97,11 +108,7 @@ export function parseCliArgs(): Args {
     .argument('<message>', 'Reply message')
     .option('--mark <status>', 'Also mark as done/skip/later after replying')
     .action(async (id, message, options) => {
-      const validStatuses = ['done', 'skip', 'later'];
-      if (options.mark && !validStatuses.includes(options.mark)) {
-        console.error(`Error: Invalid mark status '${options.mark}'. Must be one of: ${validStatuses.join(', ')}`);
-        process.exit(1);
-      }
+      validateMarkStatus(options.mark);
       await runReplyCommand(id, message, options.mark);
       process.exit(0);
     });
@@ -114,16 +121,23 @@ export function parseCliArgs(): Args {
     .option('--reply <message>', 'Add reply before resolving')
     .option('--mark <status>', 'Also mark as done/skip/later after resolving')
     .action(async (id, options) => {
-      const validStatuses = ['done', 'skip', 'later'];
-      if (options.mark && !validStatuses.includes(options.mark)) {
-        console.error(`Error: Invalid mark status '${options.mark}'. Must be one of: ${validStatuses.join(', ')}`);
-        process.exit(1);
-      }
+      validateMarkStatus(options.mark);
       await runResolveCommand(id, options.reply, options.mark);
       process.exit(0);
     });
 
   program.parse();
+
+  // If a subcommand was executed (mark, reply, resolve, clear), it will call process.exit()
+  // and this code won't run. Only run default command parsing if no subcommand was matched.
+  const subcommands = ['mark', 'reply', 'resolve', 'clear'];
+  const isSubcommand = process.argv[2] && subcommands.includes(process.argv[2]);
+
+  if (isSubcommand) {
+    // Subcommand will handle its own exit, this is unreachable
+    // but TypeScript needs a return
+    return {} as Args;
+  }
 
   const options = program.opts();
   const url = program.args[0];
