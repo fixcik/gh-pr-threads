@@ -2,11 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { shortId } from './shortId.js';
 
 describe('shortId', () => {
+  const expectValidShortId = (value: string) => {
+    expect(value).toHaveLength(6);
+    expect(value).toMatch(/^[a-f0-9]{6}$/);
+  };
+
   it('should generate a 6-character hash from input', () => {
     const result = shortId('test-id-123');
 
-    expect(result).toHaveLength(6);
-    expect(result).toMatch(/^[a-f0-9]{6}$/);
+    expectValidShortId(result);
   });
 
   it('should be deterministic - same input produces same output', () => {
@@ -34,8 +38,7 @@ describe('shortId', () => {
   ])('should handle $description', ({ input }) => {
     const result = shortId(input);
 
-    expect(result).toHaveLength(6);
-    expect(result).toMatch(/^[a-f0-9]{6}$/);
+    expectValidShortId(result);
   });
 
   it('should produce specific known hash for known input', () => {

@@ -6,15 +6,15 @@ const useColors = process.stdout.isTTY;
 const terminalWidth = process.stdout.columns || 120;
 
 const colors = {
-  bold: (s: string) => useColors ? `\x1b[1m${s}\x1b[0m` : s,
-  dim: (s: string) => useColors ? `\x1b[2m${s}\x1b[0m` : s,
-  italic: (s: string) => useColors ? `\x1b[3m${s}\x1b[0m` : s,
-  cyan: (s: string) => useColors ? `\x1b[36m${s}\x1b[0m` : s,
-  yellow: (s: string) => useColors ? `\x1b[33m${s}\x1b[0m` : s,
-  green: (s: string) => useColors ? `\x1b[32m${s}\x1b[0m` : s,
-  red: (s: string) => useColors ? `\x1b[31m${s}\x1b[0m` : s,
-  underline: (s: string) => useColors ? `\x1b[4m${s}\x1b[0m` : s,
-  reset: '\x1b[0m'
+  bold: (s: string) => useColors ? `\u001b[1m${s}\u001b[0m` : s,
+  dim: (s: string) => useColors ? `\u001b[2m${s}\u001b[0m` : s,
+  italic: (s: string) => useColors ? `\u001b[3m${s}\u001b[0m` : s,
+  cyan: (s: string) => useColors ? `\u001b[36m${s}\u001b[0m` : s,
+  yellow: (s: string) => useColors ? `\u001b[33m${s}\u001b[0m` : s,
+  green: (s: string) => useColors ? `\u001b[32m${s}\u001b[0m` : s,
+  red: (s: string) => useColors ? `\u001b[31m${s}\u001b[0m` : s,
+  underline: (s: string) => useColors ? `\u001b[4m${s}\u001b[0m` : s,
+  reset: '\u001b[0m'
 };
 
 interface FileGroup {
@@ -27,11 +27,30 @@ interface FileGroup {
 }
 
 /**
+ * Maps file extension to highlight.js language identifier
+ */
+function getLanguageFromPath(filePath: string): string {
+  const ext = filePath.split('.').pop()?.toLowerCase();
+  const langMap: Record<string, string> = {
+    ts: 'typescript', tsx: 'typescript',
+    js: 'javascript', jsx: 'javascript',
+    py: 'python', rb: 'ruby', go: 'go',
+    java: 'java', kt: 'kotlin',
+    rs: 'rust', c: 'c', cpp: 'cpp',
+    yaml: 'yaml', yml: 'yaml', json: 'json',
+    md: 'markdown', html: 'html', css: 'css',
+    sh: 'bash', bash: 'bash'
+  };
+  return langMap[ext || ''] || 'plaintext';
+}
+
+/**
  * Removes ANSI escape codes to calculate visible string length
  */
 function stripAnsi(str: string): string {
+  // Use unicode escape for ANSI escape sequence (ESC character)
   // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1b\[[0-9;]*m/g, '');
+  return str.replace(/\u001b\[[0-9;]*m/g, '');
 }
 
 /**
@@ -149,13 +168,13 @@ function parseDetailsBlocks(text: string): { text: string; details: Array<{ summ
 /**
  * Formats a suggestion block with syntax highlighting
  */
-function formatSuggestionBlock(code: string, restText: string, indent: string): string[] {
+function formatSuggestionBlock(code: string, restText: string, indent: string, language: string = 'typescript'): string[] {
   const lines: string[] = [];
   lines.push(`${indent}    ${colors.green('suggestion:')}`);
 
   try {
     const highlighted = useColors
-      ? highlight(code, { language: 'typescript', ignoreIllegals: true })
+      ? highlight(code, { language, ignoreIllegals: true })
       : code;
     highlighted.split('\n').forEach(line => {
       lines.push(`${indent}      ${line}`);
@@ -207,7 +226,7 @@ function formatMainContent(text: string, indent: string): string[] {
  * - Outputs <details> blocks as quote with bold header
  * - Wraps long lines according to terminal width
  */
-function formatCommentBody(body: string, indent: string): { lines: string[]; hasSuggestion: boolean } {
+function formatCommentBody(body: string, indent: string, filePath?: string): { lines: string[]; hasSuggestion: boolean } {
   const lines: string[] = [];
   const { text: mainText, details } = parseDetailsBlocks(body);
   const suggestionMatch = mainText.match(/```suggestion\n([\s\S]*?)```/);
@@ -217,7 +236,8 @@ function formatCommentBody(body: string, indent: string): { lines: string[]; has
     hasSuggestion = true;
     const code = suggestionMatch[1];
     const restText = mainText.replace(/```suggestion\n[\s\S]*?```/, '').trim();
-    lines.push(...formatSuggestionBlock(code, restText, indent));
+    const language = filePath ? getLanguageFromPath(filePath) : 'typescript';
+    lines.push(...formatSuggestionBlock(code, restText, indent, language));
   } else {
     lines.push(...formatMainContent(mainText, indent));
   }
@@ -290,7 +310,7 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
       lines.push(authorLine);
     }
 
-    const { lines: bodyLines } = formatCommentBody(comment.body, indent);
+    const { lines: bodyLines } = formatCommentBody(comment.body, indent, filePath);
     lines.push(...bodyLines);
 
     if (i < thread.comments.length - 1) {
@@ -319,7 +339,7 @@ function formatNitpick(nitpick: Nitpick, indent: string, filePath: string): stri
 
   lines.push(`${indent}${colors.cyan('coderabbitai')} ${colors.dim('[nitpick]')}:`);
 
-  const { lines: bodyLines } = formatCommentBody(nitpick.content, indent);
+  const { lines: bodyLines } = formatCommentBody(nitpick.content, indent, filePath);
   lines.push(...bodyLines);
 
   return lines.join('\n');
