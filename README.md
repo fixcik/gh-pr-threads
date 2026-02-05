@@ -173,6 +173,36 @@ gh-pr-threads resolve abc123 --reply "Done" --mark done
 
 **Note:** Resolve only works with review threads, not nitpicks.
 
+### React Command
+
+Add reactions to review comments:
+
+```bash
+# Add reaction to single comment
+gh-pr-threads react THUMBS_UP abc123
+gh-pr-threads react 👍 abc123
+
+# Add reaction to multiple comments (batch)
+gh-pr-threads react ❤️ abc123 def456 ghi789
+
+# All supported reactions
+gh-pr-threads react THUMBS_UP abc123    # 👍
+gh-pr-threads react THUMBS_DOWN abc123  # 👎
+gh-pr-threads react LAUGH abc123        # 😄
+gh-pr-threads react HOORAY abc123       # 🎉
+gh-pr-threads react CONFUSED abc123     # 😕
+gh-pr-threads react HEART abc123        # ❤️
+gh-pr-threads react ROCKET abc123       # 🚀
+gh-pr-threads react EYES abc123         # 👀
+```
+
+Supported reaction formats:
+- Uppercase names: `THUMBS_UP`, `HEART`, `ROCKET`
+- Lowercase names: `thumbs_up`, `heart`, `rocket`
+- Emoji: `👍`, `❤️`, `🚀`
+
+**Note:** Reactions work with any review comment ID.
+
 ## Filtering Options
 
 ### Data Types (--only)

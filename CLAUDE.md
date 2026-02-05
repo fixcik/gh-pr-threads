@@ -138,6 +138,12 @@ npm run check  # typecheck + lint + test
      - `formatDetailBlock`: Formats HTML details as quotes
 6. **Commands** (`src/commands/`):
    - `reply.ts`, `resolve.ts`, `mark.ts`: Thread management commands
+   - `react.ts`: Adds GitHub reactions to review comments
+     - Supports short ID and batch operations
+     - Validates reaction types (8 GitHub reactions)
+     - Uses `gh api graphql` mutation `addReaction`
+     - Handles duplicate reaction errors
+     - Normalizes emoji and text input formats
    - `shared.ts`: Common utilities for command context and validation
 7. **Main** (`src/index.ts`): Orchestrates the entire flow with parallel API fetching
 
