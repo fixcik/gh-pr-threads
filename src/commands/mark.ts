@@ -1,43 +1,44 @@
-import { getStatePath, loadState, saveState, markItem, clearMark, resolveId } from '../state/manager.js';
-import { detectPR } from '../utils/pr.js';
+import {
+  prepareBatchCommandContext,
+  markBatchAndSave,
+  clearBatchAndSave,
+  reportBatchResults
+} from './shared.js';
 
 export type MarkStatus = 'done' | 'skip' | 'later' | 'clear';
 
 export async function runMarkCommand(
-  id: string,
+  ids: string[],
   status: MarkStatus,
   note?: string
 ): Promise<void> {
-  const pr = detectPR();
-  const statePath = getStatePath(pr.owner, pr.repo, pr.number);
-  const state = loadState(statePath);
+  const context = prepareBatchCommandContext(ids);
 
-  // Resolve short ID to full ID
-  const fullId = resolveId(state, id);
-
-  if (!fullId) {
-    console.error(`❌ ID '${id}' not found in state. Run gh-pr-threads first to fetch threads.`);
+  // Check if all IDs are invalid
+  if (context.resolvedIds.size === 0) {
+    console.error(`❌ None of the provided IDs were found in state. Run gh-pr-threads first to fetch threads.`);
+    for (const id of context.invalidIds) {
+      console.error(`   - ${id}: Not found`);
+    }
     process.exit(1);
   }
 
+  let result;
+  const operation = status === 'clear' ? 'Clear mark' : `Mark as ${status}`;
+
   if (status === 'clear') {
-    const success = clearMark(state, fullId);
-    if (success) {
-      console.log(`✅ Cleared mark for ${id}`);
-    } else {
-      console.error(`❌ Failed to clear mark for ${id}`);
-      process.exit(1);
-    }
+    result = clearBatchAndSave(context, ids.filter(id => context.resolvedIds.has(id)));
   } else {
-    const success = markItem(state, fullId, status, note);
-    if (success) {
-      console.log(`✅ Marked ${id} as ${status}${note ? ` (note: ${note})` : ''}`);
-    } else {
-      console.error(`❌ Failed to mark ${id}`);
-      process.exit(1);
-    }
+    result = markBatchAndSave(context, ids.filter(id => context.resolvedIds.has(id)), status, note);
   }
 
-  saveState(statePath, state);
-  console.log(`💾 State saved to ${statePath}`);
+  const allSucceeded = reportBatchResults(result, operation, context.invalidIds);
+
+  if (result.successful.length > 0) {
+    console.log(`💾 State saved to ${context.statePath}`);
+  }
+
+  if (!allSucceeded) {
+    process.exit(1);
+  }
 }
