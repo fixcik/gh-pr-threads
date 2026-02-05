@@ -4,6 +4,7 @@ import { shortId } from '../utils/shortId.js';
 import { highlight } from 'cli-highlight';
 import { loadState } from '../state/manager.js';
 import { formatReaction, supportsEmoji } from '../utils/reactions.js';
+import { findBalancedDetails } from '../parsers/nitpicks.js';
 
 const useColors = process.stdout.isTTY;
 
@@ -207,7 +208,10 @@ function formatDiffBlock(code: string, indent: string): string[] {
   const lines: string[] = [];
   const bar = colors.dim('│');
 
-  code.split('\n').forEach(line => {
+  // Remove trailing newlines from code
+  const cleanCode = code.replace(/\n+$/, '');
+
+  cleanCode.split('\n').forEach(line => {
     let coloredLine: string;
     if (line.startsWith('+')) {
       // Added line - green
@@ -230,25 +234,28 @@ function formatDiffBlock(code: string, indent: string): string[] {
 }
 
 /**
- * Parses and formats HTML <details> blocks
+ * Parses and formats HTML <details> blocks (handles nested blocks correctly)
  */
 function parseDetailsBlocks(text: string): { text: string; details: Array<{ summary: string; content: string }> } {
+  // Use balanced details parser that handles nested blocks
+  const detailsBlocks = findBalancedDetails(text);
+
   const details: Array<{ summary: string; content: string }> = [];
 
-  // Find all <details> blocks
-  const detailsRegex = /<details>\s*<summary>(.*?)<\/summary>\s*([\s\S]*)<\/details>/gi;
+  detailsBlocks.forEach(block => {
+    details.push({
+      summary: block.summary,
+      content: block.content
+    });
+  });
 
-  let match;
-  while ((match = detailsRegex.exec(text)) !== null) {
-    const summary = match[1].trim();
-    const content = match[2].trim();
-    details.push({ summary, content });
-  }
+  // Remove all details blocks from text
+  let cleanText = text;
+  detailsBlocks.forEach(block => {
+    cleanText = cleanText.replace(block.full, '');
+  });
 
-  // Remove <details> blocks from text
-  const cleanText = text.replace(detailsRegex, '').trim();
-
-  return { text: cleanText, details };
+  return { text: cleanText.trim(), details };
 }
 
 /**
@@ -310,17 +317,20 @@ function formatSuggestionBlock(code: string, restText: string, indent: string, l
 function highlightAndWrapCode(code: string, language: string, indent: string): string[] {
   const lines: string[] = [];
   const codeLines: string[] = [];
-  
+
+  // Remove trailing newlines from code
+  const cleanCode = code.replace(/\n+$/, '');
+
   // Apply syntax highlighting
   try {
     const highlighted = useColors
-      ? highlight(code, { language, ignoreIllegals: true })
-      : code;
+      ? highlight(cleanCode, { language, ignoreIllegals: true })
+      : cleanCode;
     highlighted.split('\n').forEach(line => {
       codeLines.push(`${indent}      ${line}`);
     });
   } catch {
-    code.split('\n').forEach(line => {
+    cleanCode.split('\n').forEach(line => {
       codeLines.push(`${indent}      ${colors.dim(line)}`);
     });
   }
@@ -478,10 +488,21 @@ function formatDetailBlock(detail: { summary: string; content: string }, indent:
     return lines;
   }
 
-  // Plain text with wrapping
-  const formatted = formatMarkdown(detail.content);
-  lines.push(...wrapText(formatted, `${indent}    `, terminalWidth, true));
-  
+  // Check for nested <details> blocks in content
+  const { text: cleanContent, details: nestedDetails } = parseDetailsBlocks(detail.content);
+
+  // Format the clean text (without nested details)
+  if (cleanContent.trim()) {
+    const formatted = formatMarkdown(cleanContent);
+    lines.push(...wrapText(formatted, `${indent}    `, terminalWidth, true));
+  }
+
+  // Recursively format nested details blocks with same indent
+  nestedDetails.forEach(nestedDetail => {
+    const nestedLines = formatDetailBlock(nestedDetail, indent);
+    lines.push(...nestedLines);
+  });
+
   return lines;
 }
 
