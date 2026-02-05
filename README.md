@@ -110,6 +110,69 @@ gh-pr-threads clear --owner=owner --repo=repo-name --number=123
 
 This removes the state file, allowing you to restart review processing from scratch.
 
+### Mark Command
+
+Mark threads or nitpicks with a status:
+
+```bash
+# Mark single item
+gh-pr-threads mark done abc123
+gh-pr-threads mark skip abc123
+
+# Mark multiple items (batch)
+gh-pr-threads mark done abc123 def456 ghi789
+gh-pr-threads mark skip abc123 def456 --note "Out of scope"
+
+# Clear mark
+gh-pr-threads mark clear abc123
+```
+
+Available statuses:
+- `done` - Mark as completed
+- `skip` - Mark to skip (won't appear in default output)
+- `later` - Mark to address later
+- `clear` - Remove any existing mark
+
+### Reply Command
+
+Reply to review threads:
+
+```bash
+# Reply to single thread
+gh-pr-threads reply "Your reply message" abc123
+
+# Reply to multiple threads with same message (batch)
+gh-pr-threads reply "Acknowledged, will fix in follow-up PR" abc123 def456
+
+# Reply and mark as done
+gh-pr-threads reply "Fixed" abc123 --mark done
+```
+
+**Note:** Reply only works with review threads, not nitpicks.
+
+### Resolve Command
+
+Resolve review threads on GitHub:
+
+```bash
+# Resolve single thread
+gh-pr-threads resolve abc123
+
+# Resolve multiple threads (batch)
+gh-pr-threads resolve abc123 def456 ghi789
+
+# Resolve with reply
+gh-pr-threads resolve abc123 --reply "Fixed in commit xyz"
+
+# Resolve multiple with same reply
+gh-pr-threads resolve abc123 def456 --reply "Addressed in refactoring"
+
+# Resolve, reply, and mark
+gh-pr-threads resolve abc123 --reply "Done" --mark done
+```
+
+**Note:** Resolve only works with review threads, not nitpicks.
+
 ## Filtering Options
 
 ### Data Types (--only)

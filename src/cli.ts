@@ -86,43 +86,43 @@ export function parseCliArgs(): Args {
   // Mark command
   program
     .command('mark')
-    .description('Mark thread/nitpick as done, skip, later, or clear the mark')
-    .argument('<id>', 'Thread or nitpick short ID (6 characters)')
+    .description('Mark thread/nitpick(s) as done, skip, later, or clear the mark')
     .argument('<status>', 'Status: done, skip, later, or clear')
+    .argument('<ids...>', 'Thread or nitpick short ID(s) (6 characters each)')
     .option('--note <text>', 'Optional note')
-    .action(async (id, status, options) => {
+    .action(async (status, ids, options) => {
       const validStatuses = ['done', 'skip', 'later', 'clear'];
       if (!validStatuses.includes(status)) {
         console.error(`Error: Invalid status '${status}'. Must be one of: ${validStatuses.join(', ')}`);
         process.exit(1);
       }
-      await runMarkCommand(id, status as MarkStatus, options.note);
+      await runMarkCommand(ids, status as MarkStatus, options.note);
       process.exit(0);
     });
 
   // Reply command
   program
     .command('reply')
-    .description('Reply to a review thread')
-    .argument('<id>', 'Thread short ID (6 characters)')
+    .description('Reply to review thread(s)')
     .argument('<message>', 'Reply message')
+    .argument('<ids...>', 'Thread short ID(s) (6 characters each)')
     .option('--mark <status>', 'Also mark as done/skip/later after replying')
-    .action(async (id, message, options) => {
+    .action(async (message, ids, options) => {
       validateMarkStatus(options.mark);
-      await runReplyCommand(id, message, options.mark);
+      await runReplyCommand(ids, message, options.mark);
       process.exit(0);
     });
 
   // Resolve command
   program
     .command('resolve')
-    .description('Resolve a review thread on GitHub')
-    .argument('<id>', 'Thread short ID (6 characters)')
+    .description('Resolve review thread(s) on GitHub')
+    .argument('<ids...>', 'Thread short ID(s) (6 characters each)')
     .option('--reply <message>', 'Add reply before resolving')
     .option('--mark <status>', 'Also mark as done/skip/later after resolving')
-    .action(async (id, options) => {
+    .action(async (ids, options) => {
       validateMarkStatus(options.mark);
-      await runResolveCommand(id, options.reply, options.mark);
+      await runResolveCommand(ids, options.reply, options.mark);
       process.exit(0);
     });
 
