@@ -8,11 +8,6 @@ export interface PageInfo {
   endCursor: string | null;
 }
 
-export interface Author {
-  login: string;
-  __typename?: string;
-}
-
 export interface GraphQLError {
   message: string;
 }

@@ -3,146 +3,60 @@
 import Debug from 'debug';
 import { parseCliArgs } from './cli.js';
 import { runGh } from './github/client.js';
-import { fetchAllPages, fetchAllThreadComments } from './github/fetcher.js';
-import { THREADS_QUERY, FILES_QUERY, REVIEWS_QUERY, COMMENTS_QUERY, META_QUERY } from './github/queries.js';
-import { parseNitpicks } from './parsers/nitpicks.js';
-import { cleanCommentBody } from './parsers/comments.js';
+import { META_QUERY } from './github/queries.js';
 import { getStatePath, loadState, registerIds, saveState } from './state/manager.js';
 import { formatOutput } from './output/formatter.js';
 import { formatPlainOutput } from './output/plainFormatter.js';
 import { setImageStoragePath } from './utils/images.js';
-import type { ProcessedThread, BotSummary, Nitpick, Thread, ThreadComment } from './types.js';
-import type { PRMetaData, Author } from './github/apiTypes.js';
+import { resolveThreadId } from './core/threadResolver.js';
+import { filterThreadById } from './core/threadFilter.js';
+import { fetchPRData } from './core/dataFetcher.js';
+import { processThreads } from './core/threadProcessor.js';
+import { processBotSummaries } from './core/botProcessor.js';
+import type { PRMetaData } from './github/apiTypes.js';
 
 const debug = Debug('gh-pr-threads');
 const debugTiming = Debug('gh-pr-threads:timing');
 
-const DEFAULT_BOT_USERNAMES = [
-  'coderabbitai',
-  'github-actions',
-  'sonarqubecloud',
-  'dependabot',
-  'renovate',
-  'greenkeeper'
-];
-
-function isBot(author: { login: string; __typename?: string }): boolean {
-  // 1. Check by GraphQL __typename field (most reliable)
-  if (author.__typename === 'Bot') {
-    return true;
-  }
-
-  // 2. Check against known bot usernames
-  return DEFAULT_BOT_USERNAMES.includes(author.login.toLowerCase());
-}
-
 async function main() {
   const startTime = Date.now();
   const { owner, repo, number, showAll, only, includeDone, withResolved, format, ignoreBots, threadId } = parseCliArgs();
+  
   debug(`Fetching PR ${owner}/${repo}#${number}`);
   debug(`Options: showAll=${showAll}, includeDone=${includeDone}, withResolved=${withResolved}, ignoreBots=${ignoreBots}, only=${only.join(',') || 'all'}, format=${format}, threadId=${threadId || 'none'}`);
 
-  const filter = (key: string) => {
-    // Ignore userComments option (removed in v0.3.0)
-    if (key === 'userComments') return false;
-    return only.length === 0 || only.includes(key);
-  };
+  // Create filter function
+  const filter = createFilterFunction(only);
+
+  // Initialize state
   const statePath = getStatePath(owner, repo, number);
   const state = loadState(statePath);
   setImageStoragePath(statePath);
   debug(`State loaded from ${statePath}`);
 
-  // Resolve thread ID if specified
-  let targetThreadId: string | null = null;
-  if (threadId) {
-    const resolved = state.idMap[threadId];
-    if (!resolved) {
-      console.error(`Error: Thread '${threadId}' not found in PR ${owner}/${repo}#${number}`);
-      console.error(`State file: ${statePath}`);
-      console.error(`Hint: Run without --thread first to populate thread IDs.`);
-      process.exit(1);
-    }
-    targetThreadId = resolved;
-    debug(`Resolved thread ID '${threadId}' to full ID '${targetThreadId}'`);
-  }
+  // Resolve target thread ID if specified
+  const targetThreadId = resolveThreadId(threadId, state);
 
-  // Parallel fetch of initial data (1-4)
+  // Fetch all PR data in parallel
   debug('Fetching PR data in parallel: threads, files, reviews, comments...');
-  const parallelStartTime = Date.now();
+  const prData = await fetchPRData({
+    owner,
+    repo,
+    number,
+    targetThreadId,
+    shouldFetchFiles: filter('files')
+  });
 
-  const [allThreads, allFiles, allReviews, allComments] = await Promise.all([
-    // 1. Fetch review threads
-    (async () => {
-      const t1 = Date.now();
-      const threads = await fetchAllPages<Thread>({
-        owner,
-        repo,
-        number,
-        queryPattern: THREADS_QUERY,
-        getNodes: pr => (pr.reviewThreads?.nodes as Thread[]) || [],
-        getPageInfo: pr => pr.reviewThreads?.pageInfo || { hasNextPage: false, endCursor: null }
-      });
-      debugTiming(`Threads fetched: ${threads.length} threads in ${Date.now() - t1}ms`);
-      return threads;
-    })(),
+  // Filter threads if targeting specific thread
+  const threadsToProcess = targetThreadId 
+    ? filterThreadById(prData.threads, targetThreadId)
+    : prData.threads;
 
-    // 2. Fetch files
-    (async () => {
-      // Skip files when targeting specific thread
-      if (targetThreadId || !filter('files')) return [];
-      const t1 = Date.now();
-      const files = await fetchAllPages({
-        owner,
-        repo,
-        number,
-        queryPattern: FILES_QUERY,
-        getNodes: pr => pr.files?.nodes || [],
-        getPageInfo: pr => pr.files?.pageInfo || { hasNextPage: false, endCursor: null }
-      });
-      debugTiming(`Files fetched: ${files.length} files in ${Date.now() - t1}ms`);
-      return files;
-    })(),
+  debug(`Filtered to ${threadsToProcess.length} threads from ${prData.threads.length} total`);
 
-    // 3. Fetch reviews
-    (async () => {
-      // Skip reviews when targeting specific thread (only needed for bot summaries)
-      if (targetThreadId) return [];
-      const t1 = Date.now();
-      const reviews = await fetchAllPages({
-        owner,
-        repo,
-        number,
-        queryPattern: REVIEWS_QUERY,
-        getNodes: pr => pr.reviews?.nodes || [],
-        getPageInfo: pr => pr.reviews?.pageInfo || { hasNextPage: false, endCursor: null }
-      });
-      debugTiming(`Reviews fetched: ${reviews.length} reviews in ${Date.now() - t1}ms`);
-      return reviews;
-    })(),
-
-    // 4. Fetch general comments
-    (async () => {
-      // Skip comments when targeting specific thread (only needed for bot summaries)
-      if (targetThreadId) return [];
-      const t1 = Date.now();
-      const comments = await fetchAllPages({
-        owner,
-        repo,
-        number,
-        queryPattern: COMMENTS_QUERY,
-        getNodes: pr => pr.comments?.nodes || [],
-        getPageInfo: pr => pr.comments?.pageInfo || { hasNextPage: false, endCursor: null }
-      });
-      debugTiming(`Comments fetched: ${comments.length} comments in ${Date.now() - t1}ms`);
-      return comments;
-    })()
-  ]);
-
-  debugTiming(`All parallel fetches completed in ${Date.now() - parallelStartTime}ms`);
-
-  // 5. Get PR Meta
+  // Fetch PR metadata
   debug('Fetching PR metadata...');
-  let t1 = Date.now();
+  const metaFetchStartTime = Date.now();
   const metaResult = runGh<PRMetaData>([
     'api',
     'graphql',
@@ -151,124 +65,39 @@ async function main() {
     `-F number=${number}`,
     `-f query='${META_QUERY}'`
   ]);
-  debugTiming(`PR metadata fetched in ${Date.now() - t1}ms`);
+  debugTiming(`PR metadata fetched in ${Date.now() - metaFetchStartTime}ms`);
 
   const pr = metaResult.data.repository.pullRequest;
-  const prMeta = { ...pr, author: pr.author.login, files: allFiles };
+  const prMeta = { ...pr, author: pr.author.login, files: prData.files };
 
-  // 6. Process Threads
+  // Process threads
   debug('Processing review threads...');
-  t1 = Date.now();
-  const processedThreads: ProcessedThread[] = [];
-  // Cache to avoid fetching same thread comments twice
-  const threadCommentsCache = new Map<string, ThreadComment[]>();
-
-  if (filter('threads') || targetThreadId) {
-    // If targetThreadId is set, filter to only that thread
-    let threadsToProcess: Thread[];
-    if (targetThreadId) {
-      const target = targetThreadId;
-      threadsToProcess = allThreads.filter(t => {
-        // Support both GraphQL ID format (PRRT_xxx) and old path:line format
-        if (t.id === target) {
-          debug(`Thread matched by GraphQL ID: ${t.id}`);
-          return true;
-        }
-        // Check if targetThreadId is in path:line format
-        if (target.includes(':') && target.includes('/')) {
-          const lastColonIdx = target.lastIndexOf(':');
-          const path = target.slice(0, lastColonIdx);
-          const lineRange = target.slice(lastColonIdx + 1);
-          const [startLine] = lineRange.split('-').map(Number);
-          debug(`Checking thread: path=${t.path}, line=${t.line} against path=${path}, startLine=${startLine}`);
-          if (t.path === path && t.line === startLine) {
-            debug(`Thread matched by path:line`);
-            return true;
-          }
-        }
-        return false;
-      });
-    } else {
-      threadsToProcess = allThreads;
-    }
-
-    debug(`Filtered to ${threadsToProcess.length} threads from ${allThreads.length} total`);
-
-    let skipped = 0;
-    for (const t of threadsToProcess as Thread[]) {
-      // Skip filters if targeting specific thread
-      if (!targetThreadId) {
-        if (!showAll && !withResolved && t.isResolved) {
-          skipped++;
-          continue;
-        }
-        const threadStatus = state.threads[t.id]?.status;
-        if (!includeDone && (threadStatus === 'done' || threadStatus === 'skip')) {
-          skipped++;
-          continue;
-        }
-      }
-
-      const comments = await fetchAllThreadComments(owner, repo, number, t);
-      threadCommentsCache.set(t.id, comments);
-      const threadStatus = state.threads[t.id]?.status;
-      processedThreads.push({
-        thread_id: t.id,
-        isResolved: t.isResolved,
-        isOutdated: t.isOutdated,
-        path: t.path,
-        line: t.line,
-        status: threadStatus,
-        comments: comments.map(c => ({
-          id: c.id,
-          author: c.author.login,
-          body: cleanCommentBody(c.body),
-          url: c.url,
-          createdAt: c.createdAt
-        }))
-      });
-    }
-    debugTiming(`Threads processed: ${processedThreads.length} / ${allThreads.length} (${skipped} skipped) in ${Date.now() - t1}ms`);
-  }
-
-  // 7. Process Bot Summaries
-  debug('Processing bot summaries...');
-  t1 = Date.now();
-  const botSummaries: BotSummary[] = [];
-  // Skip bot summaries when targeting specific thread
-  if (!targetThreadId && !ignoreBots && (filter('summaries') || filter('nitpicks'))) {
-    const candidates = [...allComments, ...allReviews].filter((c): c is { author: Author; body: string; url: string } => {
-      const comment = c as { author?: Author; body?: string; url?: string };
-      return !!comment.author && !!comment.body && !!comment.url && isBot(comment.author);
-    });
-    debug(`Found ${candidates.length} bot comments`);
-
-    let totalNitpicks = 0;
-    for (const c of candidates) {
-      let nitpicks = parseNitpicks(c.body);
-      totalNitpicks += nitpicks.length;
-      if (filter('nitpicks')) {
-        nitpicks = nitpicks
-          .map(n => ({ ...n, status: state.nitpicks[n.id]?.status }))
-          .filter(n => includeDone || (n.status !== 'done' && n.status !== 'skip'));
-      }
-      const result: BotSummary = { author: c.author.login, url: c.url };
-      if (filter('summaries')) result.body = cleanCommentBody(c.body);
-      if (filter('nitpicks')) result.nitpicks = nitpicks;
-      if (result.body || (result.nitpicks && result.nitpicks.length > 0)) botSummaries.push(result);
-    }
-    debugTiming(`Bot summaries processed: ${botSummaries.length} summaries, ${totalNitpicks} total nitpicks in ${Date.now() - t1}ms`);
-  }
-
-  // Collect all nitpicks for ID registration
-  const allNitpicks: Nitpick[] = [];
-  botSummaries.forEach((summary) => {
-    if (summary.nitpicks) {
-      allNitpicks.push(...summary.nitpicks);
-    }
+  const { processedThreads } = await processThreads({
+    threads: threadsToProcess,
+    owner,
+    repo,
+    number,
+    state,
+    targetThreadId,
+    showAll,
+    withResolved,
+    includeDone
   });
 
-  // Register IDs for short hash lookup
+  // Process bot summaries
+  debug('Processing bot summaries...');
+  const { botSummaries, allNitpicks } = !targetThreadId && !ignoreBots && (filter('summaries') || filter('nitpicks'))
+    ? processBotSummaries({
+        comments: prData.comments,
+        reviews: prData.reviews,
+        state,
+        shouldIncludeSummaries: filter('summaries'),
+        shouldIncludeNitpicks: filter('nitpicks'),
+        includeDone
+      })
+    : { botSummaries: [], allNitpicks: [] };
+
+  // Register IDs and save state
   registerIds(state, processedThreads, allNitpicks);
   saveState(statePath, state);
 
@@ -276,14 +105,60 @@ async function main() {
   debugTiming(`Total execution time: ${totalTime}ms`);
   debug('Output ready');
 
-  // Output in selected format
+  // Output results in selected format
+  outputResults({
+    format,
+    prMeta,
+    statePath,
+    processedThreads,
+    botSummaries,
+    allThreads: prData.threads as Array<{ isResolved: boolean }>,
+    filter
+  });
+}
+
+/**
+ * Creates a filter function based on the 'only' option
+ */
+function createFilterFunction(only: string[]): (key: string) => boolean {
+  return (key: string) => {
+    // Ignore userComments option (removed in v0.3.0)
+    if (key === 'userComments') return false;
+    return only.length === 0 || only.includes(key);
+  };
+}
+
+interface OutputOptions {
+  format: string;
+  prMeta: {
+    number: number;
+    title: string;
+    state: string;
+    author: string;
+    files: unknown[];
+    isDraft: boolean;
+    mergeable: string;
+  };
+  statePath: string;
+  processedThreads: unknown[];
+  botSummaries: unknown[];
+  allThreads: Array<{ isResolved: boolean }>;
+  filter: (key: string) => boolean;
+}
+
+/**
+ * Outputs results in the specified format (JSON or plain text)
+ */
+function outputResults(options: OutputOptions): void {
+  const { format, prMeta, statePath, processedThreads, botSummaries, allThreads, filter } = options;
+
   if (format === 'json') {
     const output = formatOutput({
       prMeta,
       statePath,
       processedThreads,
       botSummaries,
-      allThreads: allThreads as Array<{ isResolved: boolean }>,
+      allThreads,
       filter
     });
     console.log(JSON.stringify(output, null, 2));
@@ -293,7 +168,7 @@ async function main() {
       statePath,
       processedThreads,
       botSummaries,
-      allThreads: allThreads as Array<{ isResolved: boolean }>,
+      allThreads,
       filter
     });
     console.log(output);
