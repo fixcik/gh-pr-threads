@@ -50,13 +50,14 @@ export function supportsEmoji(): boolean {
  * Normalize reaction input to valid GitHub reaction type
  * Accepts: THUMBS_UP, thumbs_up, 👍
  */
-export function normalizeReaction(input: string): string {
-  const upper = input.toUpperCase();
+export function normalizeReaction(input: string): ReactionType {
+  const normalized = input.trim();
+  const upper = normalized.toUpperCase();
   if (VALID_REACTIONS.includes(upper as ReactionType)) {
-    return upper;
+    return upper as ReactionType;
   }
-  if (EMOJI_TO_REACTION[input]) {
-    return EMOJI_TO_REACTION[input];
+  if (EMOJI_TO_REACTION[normalized]) {
+    return EMOJI_TO_REACTION[normalized] as ReactionType;
   }
   throw new Error(`Invalid reaction: ${input}`);
 }

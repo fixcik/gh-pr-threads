@@ -1,9 +1,31 @@
+// Cursor caching types for pagination optimization
+export interface PageCursor {
+  cursor: string | null;  // null for first page
+  itemCount: number;
+}
+
+export interface PaginationCache {
+  pages: PageCursor[];
+  lastPageHasMore: boolean;
+  totalItems: number;
+  fetchedAt: string;  // ISO timestamp for TTL
+}
+
+export interface CursorCache {
+  threads?: PaginationCache;
+  files?: PaginationCache;
+  reviews?: PaginationCache;
+  comments?: PaginationCache;
+  threadComments?: Record<string, PaginationCache>;  // keyed by thread ID
+}
+
 export interface State {
   pr: string;
   updatedAt: string;
   threads: Record<string, { status: string; note?: string }>;
   nitpicks: Record<string, { status: string; note?: string }>;
   idMap: Record<string, string>;
+  cursorCache?: CursorCache;  // optional for backward compatibility
 }
 
 export interface ThreadComment {
@@ -60,6 +82,8 @@ export interface Args {
   format: 'plain' | 'json';
   ignoreBots: boolean;
   threadId?: string;
+  noCache?: boolean;
+  cacheTtl?: number;
 }
 
 export interface Nitpick {
@@ -104,6 +128,8 @@ export interface Output {
     isDraft: boolean;
     mergeable: string;
     files: unknown[];
+    totalAdditions: number;
+    totalDeletions: number;
   };
   statePath: string;
   threads?: ProcessedThread[];

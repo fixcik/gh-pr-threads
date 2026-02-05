@@ -83,6 +83,12 @@ describe('reactions utilities', () => {
       expect(() => normalizeReaction('INVALID')).toThrow('Invalid reaction: INVALID');
       expect(() => normalizeReaction('🦄')).toThrow('Invalid reaction: 🦄');
     });
+
+    it('should trim whitespace from input', () => {
+      expect(normalizeReaction('  THUMBS_UP  ')).toBe('THUMBS_UP');
+      expect(normalizeReaction(' 👍 ')).toBe('THUMBS_UP');
+      expect(normalizeReaction('\tthumbs_up\n')).toBe('THUMBS_UP');
+    });
   });
 
   describe('REACTION_EMOJI constant', () => {

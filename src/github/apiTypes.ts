@@ -77,7 +77,7 @@ export interface ResolveMutationData {
 }
 
 export interface AddReactionMutationData {
-  addReaction: {
+  addReaction?: {
     reaction: {
       id: string;
       content: string;

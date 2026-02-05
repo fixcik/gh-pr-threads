@@ -24,7 +24,7 @@ export function runReactCommand(
   const result: BatchResult = { successful: [], failed: [] };
 
   // Execute reactions (sequentially via execSync)
-  Array.from(context.resolvedIds.entries()).forEach(([shortId, fullId]) => {
+  for (const [shortId, fullId] of Array.from(context.resolvedIds.entries())) {
     try {
       const mutationResult = runGhMutation<AddReactionMutationData>(
         ADD_REACTION_MUTATION,
@@ -58,7 +58,7 @@ export function runReactCommand(
         result.failed.push({ id: shortId, error: errorMessage });
       }
     }
-  });
+  }
 
   const allSucceeded = reportBatchResults(result, 'React', context.invalidIds, []);
 
