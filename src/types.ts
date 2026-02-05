@@ -83,6 +83,7 @@ export interface ProcessedThread {
     body: string;
     url: string;
     createdAt: string;
+    reactionGroups?: ReactionGroup[];
   }>;
 }
 
