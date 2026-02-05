@@ -472,8 +472,8 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
   thread.comments.forEach((comment, i) => {
     const userColor = getUserColor(comment.author);
 
-    // Replies get additional indent for visual nesting
-    const commentIndent = i === 0 ? indent : `${indent}  `;
+    // Replies get additional indent for visual nesting (4 spaces to align with main content)
+    const commentIndent = i === 0 ? indent : `${indent}    `;
 
     if (i === 0) {
       // First comment - show full author name with user-specific color
