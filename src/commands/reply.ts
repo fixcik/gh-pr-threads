@@ -11,11 +11,11 @@ import {
   type BatchResult
 } from './shared.js';
 
-export async function runReplyCommand(
+export function runReplyCommand(
   ids: string[],
   message: string,
   markAs?: 'done' | 'skip' | 'later'
-): Promise<void> {
+): void {
   const context = prepareBatchCommandContext(ids);
 
   // Validate IDs
@@ -27,35 +27,24 @@ export async function runReplyCommand(
 
   const result: BatchResult = { successful: [], failed: [] };
 
-  // Execute replies (sequentially via execSync, but processed as batch)
-  const replyPromises = Array.from(threads.entries()).map(async ([shortId, fullId]) => {
+  // Execute replies (sequentially via execSync)
+  Array.from(threads.entries()).forEach(([shortId, fullId]) => {
     try {
       const mutationResult = runGhMutation<AddReplyMutationData>(REPLY_MUTATION, {
         threadId: fullId,
         body: message
       });
       const commentUrl = mutationResult.addPullRequestReviewThreadReply?.comment?.url;
-      return { shortId, fullId, success: true, url: commentUrl };
+      result.successful.push(shortId);
+      console.log(`💬 Replied to thread ${shortId}`);
+      if (commentUrl) {
+        console.log(`   ${commentUrl}`);
+      }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      return { shortId, fullId, success: false, error: errorMessage };
+      result.failed.push({ id: shortId, error: errorMessage });
     }
   });
-
-  const replyResults = await Promise.all(replyPromises);
-
-  // Process results
-  for (const res of replyResults) {
-    if (res.success) {
-      result.successful.push(res.shortId);
-      console.log(`💬 Replied to thread ${res.shortId}`);
-      if (res.url) {
-        console.log(`   ${res.url}`);
-      }
-    } else {
-      result.failed.push({ id: res.shortId, error: res.error || 'Unknown error' });
-    }
-  }
 
   // Optionally mark successful items
   if (markAs) {
@@ -63,10 +52,6 @@ export async function runReplyCommand(
   }
 
   const allSucceeded = reportBatchResults(result, 'Reply', context.invalidIds, nonThreads);
-
-  if (result.successful.length > 0 && markAs) {
-    console.log(`💾 State saved to ${context.statePath}`);
-  }
 
   if (!allSucceeded) {
     process.exit(1);

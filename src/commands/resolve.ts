@@ -11,11 +11,11 @@ import {
   type BatchResult
 } from './shared.js';
 
-export async function runResolveCommand(
+export function runResolveCommand(
   ids: string[],
   reply?: string,
   markAs?: 'done' | 'skip' | 'later'
-): Promise<void> {
+): void {
   const context = prepareBatchCommandContext(ids);
 
   // Validate IDs
@@ -27,9 +27,9 @@ export async function runResolveCommand(
 
   const result: BatchResult = { successful: [], failed: [] };
 
-  // Execute resolve operations (sequentially via execSync, but processed as batch)
+  // Execute resolve operations (sequentially via execSync)
   // Note: If reply succeeds but resolve fails, the reply is still posted
-  const resolvePromises = Array.from(threads.entries()).map(async ([shortId, fullId]) => {
+  Array.from(threads.entries()).forEach(([shortId, fullId]) => {
     try {
       // Optionally reply first
       if (reply) {
@@ -46,24 +46,13 @@ export async function runResolveCommand(
 
       // Resolve the thread
       runGhMutation<ResolveMutationData>(RESOLVE_MUTATION, { threadId: fullId });
-      return { shortId, fullId, success: true };
+      result.successful.push(shortId);
+      console.log(`🔒 Resolved thread ${shortId}`);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      return { shortId, fullId, success: false, error: errorMessage };
+      result.failed.push({ id: shortId, error: errorMessage });
     }
   });
-
-  const resolveResults = await Promise.all(resolvePromises);
-
-  // Process results
-  for (const res of resolveResults) {
-    if (res.success) {
-      result.successful.push(res.shortId);
-      console.log(`🔒 Resolved thread ${res.shortId}`);
-    } else {
-      result.failed.push({ id: res.shortId, error: res.error || 'Unknown error' });
-    }
-  }
 
   // Optionally mark successful items
   if (markAs) {
@@ -71,10 +60,6 @@ export async function runResolveCommand(
   }
 
   const allSucceeded = reportBatchResults(result, 'Resolve', context.invalidIds, nonThreads);
-
-  if (result.successful.length > 0 && markAs) {
-    console.log(`💾 State saved to ${context.statePath}`);
-  }
 
   if (!allSucceeded) {
     process.exit(1);

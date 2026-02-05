@@ -46,8 +46,9 @@ function detectCurrentPR(): PRInfo {
       repo: parts[1],
       number: prInfo.number
     };
-  } catch {
-    throw new Error('Could not detect PR. Please provide a PR URL or use --owner, --repo, --number options.');
+  } catch (error) {
+    const detail = error instanceof Error ? `: ${error.message}` : '';
+    throw new Error(`Could not detect PR${detail}. Please provide a PR URL or use --owner, --repo, --number options.`);
   }
 }
 
