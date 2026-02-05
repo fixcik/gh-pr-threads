@@ -14,6 +14,7 @@ import { fetchPRData } from './core/dataFetcher.js';
 import { processThreads } from './core/threadProcessor.js';
 import { processBotSummaries } from './core/botProcessor.js';
 import type { PRMetaData } from './github/apiTypes.js';
+import type { ProcessedThread, BotSummary } from './types.js';
 
 const debug = Debug('gh-pr-threads');
 const debugTiming = Debug('gh-pr-threads:timing');
@@ -140,8 +141,8 @@ interface OutputOptions {
     mergeable: string;
   };
   statePath: string;
-  processedThreads: unknown[];
-  botSummaries: unknown[];
+  processedThreads: ProcessedThread[];
+  botSummaries: BotSummary[];
   allThreads: Array<{ isResolved: boolean }>;
   filter: (key: string) => boolean;
 }

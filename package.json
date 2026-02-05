@@ -73,7 +73,8 @@
   },
   "nano-staged": {
     "*.ts": [
-      "eslint --fix"
+      "eslint --fix",
+      "bash -c 'tsc --noEmit'"
     ]
   }
 }
