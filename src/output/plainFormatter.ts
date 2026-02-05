@@ -31,7 +31,7 @@ const colors = {
 /**
  * Format reaction groups for plain text output
  */
-export function formatReactionGroups(groups: ReactionGroup[], useEmoji: boolean, _indent: string = '  '): string {
+export function formatReactionGroups(groups: ReactionGroup[], useEmoji: boolean, indent: string = '  '): string {
   if (!groups || groups.length === 0) {
     return '';
   }
@@ -53,7 +53,8 @@ export function formatReactionGroups(groups: ReactionGroup[], useEmoji: boolean,
       const usersList = displayedUsers.map(r => `@${r.login}`).join(', ');
       const remaining = remainingCount > 0 ? ` and ${remainingCount} more` : '';
 
-      return `${icon} ${usersList}${remaining}`;
+      // Match wrapInQuote formatting: indent + 2 spaces + bar + 2 spaces + content
+      return `${indent}  │  ${icon} ${usersList}${remaining}`;
     })
     .join('\n');
 }
@@ -235,7 +236,7 @@ function parseDetailsBlocks(text: string): { text: string; details: Array<{ summ
   const details: Array<{ summary: string; content: string }> = [];
 
   // Find all <details> blocks
-  const detailsRegex = /<details>\s*<summary>(.*?)<\/summary>\s*([\s\S]*?)<\/details>/gi;
+  const detailsRegex = /<details>\s*<summary>(.*?)<\/summary>\s*([\s\S]*)<\/details>/gi;
 
   let match;
   while ((match = detailsRegex.exec(text)) !== null) {
@@ -340,11 +341,11 @@ function highlightAndWrapCode(code: string, language: string, indent: string): s
  */
 function formatMainContent(text: string, indent: string): string[] {
   // Check for diff blocks first
-  const diffMatch = text.match(/```diff\n([\s\S]*?)```/);
+  const diffMatch = text.match(/```diff\n([\s\S]*)```/);
   if (diffMatch) {
     const lines: string[] = [];
     const code = diffMatch[1];
-    const restText = text.replace(/```diff\n[\s\S]*?```/, '').trim();
+    const restText = text.replace(/```diff\n[\s\S]*```/, '').trim();
 
     if (restText) {
       const formatted = formatMarkdown(restText);
@@ -357,7 +358,7 @@ function formatMainContent(text: string, indent: string): string[] {
   }
 
   // Check for regular code blocks with ```language
-  const codeBlockMatch = text.match(/```([a-z]*)[\s\S]*?\n```/);
+  const codeBlockMatch = text.match(/```([a-z]*)[\s\S]*\n```/);
   if (codeBlockMatch) {
     const lines: string[] = [];
     let language = codeBlockMatch[1] || 'text';
@@ -367,8 +368,8 @@ function formatMainContent(text: string, indent: string): string[] {
       language = 'diff';
     }
     
-    const code = text.match(/```[a-z]*\n([\s\S]*?)\n```/)?.[1] || '';
-    const restText = text.replace(/```[a-z]*\n[\s\S]*?\n```/, '').trim();
+    const code = text.match(/```[a-z]*\n([\s\S]*)\n```/)?.[1] || '';
+    const restText = text.replace(/```[a-z]*\n[\s\S]*\n```/, '').trim();
 
     if (restText) {
       const formatted = formatMarkdown(restText);
@@ -453,16 +454,16 @@ function formatDetailBlock(detail: { summary: string; content: string }, indent:
   lines.push('');
 
   // Check for diff in details
-  const diffMatch = detail.content.match(/```diff\n([\s\S]*?)```/);
+  const diffMatch = detail.content.match(/```diff\n([\s\S]*)```/);
   if (diffMatch) {
     const code = diffMatch[1];
-    const restText = detail.content.replace(/```diff\n[\s\S]*?```/, '').trim();
+    const restText = detail.content.replace(/```diff\n[\s\S]*```/, '').trim();
     lines.push(...formatDetailDiffBlock(code, restText, indent));
     return lines;
   }
 
   // Check for regular code blocks with ```language
-  const codeBlockMatch = detail.content.match(/```([a-z]*)\n([\s\S]*?)\n```/);
+  const codeBlockMatch = detail.content.match(/```([a-z]*)\n([\s\S]*)\n```/);
   if (codeBlockMatch) {
     let language = codeBlockMatch[1] || 'text';
 
@@ -472,7 +473,7 @@ function formatDetailBlock(detail: { summary: string; content: string }, indent:
     }
 
     const code = codeBlockMatch[2];
-    const restText = detail.content.replace(/```[a-z]*\n[\s\S]*?\n```/, '').trim();
+    const restText = detail.content.replace(/```[a-z]*\n[\s\S]*\n```/, '').trim();
     lines.push(...formatDetailCodeBlock(language, code, restText, indent));
     return lines;
   }
@@ -491,13 +492,13 @@ function formatCommentBody(body: string, indent: string, filePath?: string): { l
   const normalizedBody = body.replace(/\r\n/g, '\n');
   
   const { text: mainText, details } = parseDetailsBlocks(normalizedBody);
-  const suggestionMatch = mainText.match(/```suggestion\n([\s\S]*?)```/);
+  const suggestionMatch = mainText.match(/```suggestion\n([\s\S]*)```/);
 
   let hasSuggestion = false;
   if (suggestionMatch) {
     hasSuggestion = true;
     const code = suggestionMatch[1];
-    const restText = mainText.replace(/```suggestion\n[\s\S]*?```/, '').trim();
+    const restText = mainText.replace(/```suggestion\n[\s\S]*```/, '').trim();
     const language = filePath ? getLanguageFromPath(filePath) : 'typescript';
     lines.push(...formatSuggestionBlock(code, restText, indent, language));
   } else {
@@ -532,7 +533,7 @@ function wrapInQuote(lines: string[], indent: string, colorFn: (s: string) => st
  */
 function formatAuthor(author: string, prAuthor: string): string {
   const isAuthor = author === prAuthor;
-  const badges = isAuthor ? ' (author) (owner)' : '';
+  const badges = isAuthor ? ' (author)' : '';
   return `@${author}${badges}`;
 }
 

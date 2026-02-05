@@ -1,3 +1,19 @@
+// Shared GraphQL fields for reaction groups
+const REACTION_GROUPS_FIELDS = `reactionGroups {
+  content
+  createdAt
+  viewerHasReacted
+  reactors(first: 10) {
+    totalCount
+    nodes {
+      ... on User { login }
+      ... on Bot { login }
+      ... on Organization { login }
+      ... on Mannequin { login }
+    }
+  }
+}`;
+
 export const THREADS_QUERY = `
   query($owner: String!, $repo: String!, $number: Int!, $after: String) {
     repository(owner: $owner, name: $repo) {
@@ -10,20 +26,7 @@ export const THREADS_QUERY = `
               pageInfo { hasNextPage endCursor }
               nodes {
                 id body author { login __typename } url createdAt path line
-                reactionGroups {
-                  content
-                  createdAt
-                  viewerHasReacted
-                  reactors(first: 10) {
-                    totalCount
-                    nodes {
-                      ... on User { login }
-                      ... on Bot { login }
-                      ... on Organization { login }
-                      ... on Mannequin { login }
-                    }
-                  }
-                }
+                ${REACTION_GROUPS_FIELDS}
               }
             }
           }
@@ -96,20 +99,7 @@ export const THREAD_COMMENTS_QUERY = `
             pageInfo { hasNextPage endCursor }
             nodes {
               id body author { login __typename } url createdAt path line
-              reactionGroups {
-                content
-                createdAt
-                viewerHasReacted
-                reactors(first: 10) {
-                  totalCount
-                  nodes {
-                    ... on User { login }
-                    ... on Bot { login }
-                    ... on Organization { login }
-                    ... on Mannequin { login }
-                  }
-                }
-              }
+              ${REACTION_GROUPS_FIELDS}
             }
           }
         }

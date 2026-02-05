@@ -90,6 +90,27 @@ describe('plainFormatter reactions', () => {
     expect(result).toBe('');
   });
 
+  it('should respect custom indent parameter', () => {
+    const groups: ReactionGroup[] = [
+      {
+        content: 'THUMBS_UP',
+        createdAt: '2026-02-05T10:00:00Z',
+        viewerHasReacted: false,
+        reactors: {
+          totalCount: 1,
+          nodes: [{ login: 'user1' }]
+        }
+      }
+    ];
+
+    const customIndent = '      '; // 6 spaces
+    const result = formatReactionGroups(groups, true, customIndent);
+
+    // Verify the custom indent is applied: indent (6 spaces) + 2 spaces + bar + 2 spaces
+    expect(result).toMatch(/^ {8}│ {2}👍/); // 8 spaces total (6 + 2), then bar, then 2 spaces
+    expect(result).toContain('@user1');
+  });
+
   it('should filter out reactions with zero totalCount', () => {
     const groups: ReactionGroup[] = [
       {

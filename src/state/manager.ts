@@ -19,6 +19,10 @@ export function loadState(statePath: string): State {
       if (!loaded.idMap) {
         loaded.idMap = {};
       }
+      // Ensure cursorCache is explicitly undefined if not present (backward compatibility)
+      if (!loaded.cursorCache) {
+        loaded.cursorCache = undefined;
+      }
       return loaded;
     } catch {
       // Ignore parse errors

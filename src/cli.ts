@@ -41,6 +41,8 @@ export function parseCliArgs(): Args {
     .option('--ignore-bots', 'Exclude all bot comments and summaries', false)
     .option('--json', 'Output in JSON format (default: plain text)', false)
     .option('--thread <id>', 'Show specific thread by short ID (bypasses all filters)')
+    .option('--no-cache', 'Force full refetch, ignore cached cursors', false)
+    .option('--cache-ttl <minutes>', 'Cache TTL in minutes (default: 60)', '60')
     .action(() => {});
 
   // Clear command
@@ -183,7 +185,9 @@ export function parseCliArgs(): Args {
       withResolved: options.withResolved,
       format: options.json ? 'json' : 'plain',
       ignoreBots: options.ignoreBots || false,
-      threadId: options.thread
+      threadId: options.thread,
+      noCache: options.cache === false,  // --no-cache sets cache to false
+      cacheTtl: parseInt(options.cacheTtl || '60', 10)
     };
   } catch (error) {
     console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);

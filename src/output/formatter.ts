@@ -8,6 +8,8 @@ export interface PRMeta {
   files: unknown[];
   isDraft: boolean;
   mergeable: string;
+  totalAdditions: number;
+  totalDeletions: number;
 }
 
 export interface FormatOutputOptions {

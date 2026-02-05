@@ -45,7 +45,9 @@ describe('formatter reactions', () => {
         author: 'author',
         isDraft: false,
         mergeable: 'MERGEABLE',
-        files: []
+        files: [],
+        totalAdditions: 0,
+        totalDeletions: 0
       },
       statePath: '/tmp/state.json',
       processedThreads: threads,
@@ -88,7 +90,9 @@ describe('formatter reactions', () => {
         author: 'author',
         isDraft: false,
         mergeable: 'MERGEABLE',
-        files: []
+        files: [],
+        totalAdditions: 0,
+        totalDeletions: 0
       },
       statePath: '/tmp/state.json',
       processedThreads: threads,

@@ -6,6 +6,9 @@ dist/
 *.tsbuildinfo
 .serena/
 
+# Claude plans and local AI files
+.claude/
+
 # Logs
 *.log
 npm-debug.log*
