@@ -85,6 +85,13 @@ Tests are co-located with source files using the `.test.ts` suffix. The project 
 - Error messages and user-facing text use English
 - Documentation (README, CLAUDE.md) is in English
 
+### Documentation Policy
+- **NEVER create new Markdown (.md) files**
+- Only README.md and CLAUDE.md are maintained
+- All documentation belongs in README.md (user-facing) or CLAUDE.md (development notes)
+- Do not create: CHANGELOG.md, CONTRIBUTING.md, QUICKSTART.md, CHEATSHEET.md, PROJECT_SUMMARY.md, or any other .md files
+- Git commit messages serve as the changelog
+
 ### Code Quality Tools
 ```bash
 # Run archlint to check architectural quality
