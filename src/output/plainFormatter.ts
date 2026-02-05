@@ -1,10 +1,18 @@
 import type { ProcessedThread, BotSummary, Nitpick, Thread, ReactionGroup } from '../types.js';
+import type { PRMetadata } from '../core/dataFetcher.js';
 import { shortId } from '../utils/shortId.js';
 import { highlight } from 'cli-highlight';
 import { loadState } from '../state/manager.js';
 import { formatReaction, supportsEmoji } from '../utils/reactions.js';
 
 const useColors = process.stdout.isTTY;
+
+// Dynamic terminal width getter with higher default for separators
+function getTerminalWidth(): number {
+  return process.stdout.columns || 150;
+}
+
+// Use larger default for text wrapping
 const terminalWidth = process.stdout.columns || 120;
 
 const colors = {
@@ -14,6 +22,7 @@ const colors = {
   cyan: (s: string) => useColors ? `\u001b[36m${s}\u001b[0m` : s,
   yellow: (s: string) => useColors ? `\u001b[33m${s}\u001b[0m` : s,
   green: (s: string) => useColors ? `\u001b[32m${s}\u001b[0m` : s,
+  greenBright: (s: string) => useColors ? `\u001b[92m${s}\u001b[0m` : s,
   red: (s: string) => useColors ? `\u001b[31m${s}\u001b[0m` : s,
   underline: (s: string) => useColors ? `\u001b[4m${s}\u001b[0m` : s,
   reset: '\u001b[0m'
@@ -22,7 +31,7 @@ const colors = {
 /**
  * Format reaction groups for plain text output
  */
-export function formatReactionGroups(groups: ReactionGroup[], useEmoji: boolean, indent: string = '  '): string {
+export function formatReactionGroups(groups: ReactionGroup[], useEmoji: boolean, _indent: string = '  '): string {
   if (!groups || groups.length === 0) {
     return '';
   }
@@ -88,6 +97,8 @@ function getUserColor(username: string): (s: string) => string {
 interface FileGroup {
   path: string;
   line: number | null;
+  additions: number;
+  deletions: number;
   items: Array<{
     type: 'thread' | 'nitpick';
     data: ProcessedThread | Nitpick;
@@ -324,6 +335,9 @@ function highlightAndWrapCode(code: string, language: string, indent: string): s
   return lines;
 }
 
+/**
+ * Formats main content (handles diff blocks, code blocks, or plain markdown)
+ */
 function formatMainContent(text: string, indent: string): string[] {
   // Check for diff blocks first
   const diffMatch = text.match(/```diff\n([\s\S]*?)```/);
@@ -343,11 +357,17 @@ function formatMainContent(text: string, indent: string): string[] {
   }
 
   // Check for regular code blocks with ```language
-  const codeBlockMatch = text.match(/```([a-z]*)\n([\s\S]*?)\n```/);
+  const codeBlockMatch = text.match(/```([a-z]*)[\s\S]*?\n```/);
   if (codeBlockMatch) {
     const lines: string[] = [];
-    const language = codeBlockMatch[1] || 'text';
-    const code = codeBlockMatch[2];
+    let language = codeBlockMatch[1] || 'text';
+    
+    // Map 'suggestion' to 'diff' for proper syntax highlighting
+    if (language === 'suggestion') {
+      language = 'diff';
+    }
+    
+    const code = text.match(/```[a-z]*\n([\s\S]*?)\n```/)?.[1] || '';
     const restText = text.replace(/```[a-z]*\n[\s\S]*?\n```/, '').trim();
 
     if (restText) {
@@ -444,7 +464,13 @@ function formatDetailBlock(detail: { summary: string; content: string }, indent:
   // Check for regular code blocks with ```language
   const codeBlockMatch = detail.content.match(/```([a-z]*)\n([\s\S]*?)\n```/);
   if (codeBlockMatch) {
-    const language = codeBlockMatch[1] || 'text';
+    let language = codeBlockMatch[1] || 'text';
+
+    // Map 'suggestion' to 'diff' for proper syntax highlighting
+    if (language === 'suggestion') {
+      language = 'diff';
+    }
+
     const code = codeBlockMatch[2];
     const restText = detail.content.replace(/```[a-z]*\n[\s\S]*?\n```/, '').trim();
     lines.push(...formatDetailCodeBlock(language, code, restText, indent));
@@ -605,17 +631,24 @@ function formatNitpick(nitpick: Nitpick, indent: string, filePath: string): stri
 
 function groupByFile(
   threads: ProcessedThread[],
-  nitpicks: Nitpick[]
+  nitpicks: Nitpick[],
+  prMeta: PRMetadata
 ): FileGroup[] {
   const groups = new Map<string, FileGroup>();
+  
+  // Create file map for quick lookup
+  const fileMap = new Map(prMeta.files.map(f => [f.path, f]));
 
   // Add threads (group by file only, not by line)
   threads.forEach((thread) => {
     const key = thread.path;
     if (!groups.has(key)) {
+      const file = fileMap.get(key);
       groups.set(key, {
         path: thread.path,
         line: null,
+        additions: file?.additions || 0,
+        deletions: file?.deletions || 0,
         items: []
       });
     }
@@ -626,9 +659,12 @@ function groupByFile(
   nitpicks.forEach((nitpick) => {
     const key = nitpick.path;
     if (!groups.has(key)) {
+      const file = fileMap.get(key);
       groups.set(key, {
         path: nitpick.path,
         line: null,
+        additions: file?.additions || 0,
+        deletions: file?.deletions || 0,
         items: []
       });
     }
@@ -653,7 +689,7 @@ function groupByFile(
 }
 
 export interface FormatPlainOutputOptions {
-  prMeta: { number: number; title: string; state: string; author: string; files: unknown[] };
+  prMeta: PRMetadata;
   statePath: string;
   processedThreads: ProcessedThread[];
   botSummaries: BotSummary[];
@@ -666,9 +702,16 @@ export function formatPlainOutput(options: FormatPlainOutputOptions): string {
   const lines: string[] = [];
 
   // Header
-  const headerLine = `═══ PR #${prMeta.number}: ${prMeta.title} ═══`;
-  lines.push(colors.bold(headerLine));
-  lines.push(`Status: ${prMeta.state} | Author: ${prMeta.author} | Files: ${prMeta.files.length}`);
+  const separator = '═'.repeat(getTerminalWidth());
+  lines.push(colors.dim(separator));
+  lines.push(`🔍 ${colors.bold(`PR #${prMeta.number}: ${prMeta.title}`)}`);
+  
+  // Stats with colored additions/deletions
+  const additions = colors.greenBright(`+${prMeta.totalAdditions}`);
+  const deletions = colors.yellow(`-${prMeta.totalDeletions}`);
+  lines.push(`📊 Status: ${prMeta.state} | Author: ${prMeta.author} | Files: ${prMeta.files.length} | ${additions} ${deletions}`);
+  
+  lines.push(colors.dim(separator));
   lines.push('');
 
   // Extract nitpicks from bot summaries
@@ -720,26 +763,29 @@ export function formatPlainOutput(options: FormatPlainOutputOptions): string {
     // Group by file
     const fileGroups = groupByFile(
       filter('threads') ? processedThreads : [],
-      filter('nitpicks') ? allNitpicks : []
+      filter('nitpicks') ? allNitpicks : [],
+      prMeta
     );
 
     // Output each file group
     fileGroups.forEach((group, idx) => {
       if (idx > 0) lines.push('');
 
-      // Calculate length: emoji (2) + space (1) + path length, minimum 40
-      const fileNameLength = Math.max(40, 3 + group.path.length);
-      const separator = '─'.repeat(Math.min(fileNameLength, terminalWidth));
+      // Full width separator like footer
+      const separator = '─'.repeat(getTerminalWidth());
       lines.push(separator);
-      lines.push(`📁 ${colors.bold(group.path)}`);
+      
+      const fileStats = colors.dim(` (${colors.greenBright(`+${group.additions}`)} ${colors.yellow(`-${group.deletions}`)})`);
+      lines.push(`📁 ${colors.bold(group.path)}${fileStats}`);
+      
       lines.push(separator);
       lines.push('');
 
       group.items.forEach((item, itemIdx) => {
         if (itemIdx > 0) {
           lines.push('');
-          // Item separator: indent (2) + dots, minimum 38
-          const itemSeparatorLength = Math.max(38, Math.min(fileNameLength - 2, terminalWidth - 2));
+          // Item separator: indent (2) + dots, full width minus indent
+          const itemSeparatorLength = Math.max(38, terminalWidth - 2);
           lines.push(colors.dim('  ' + '·'.repeat(itemSeparatorLength)));
           lines.push('');
         }
@@ -757,8 +803,12 @@ export function formatPlainOutput(options: FormatPlainOutputOptions): string {
   lines.push('');
   const unresolvedCount = allThreads.filter((t) => !t.isResolved).length;
   const nitpicksCount = allNitpicks.length;
-  const summaryLine = `═══ Summary: ${processedThreads.length} threads, ${nitpicksCount} nitpicks, ${unresolvedCount} unresolved ═══`;
-  lines.push(colors.bold(summaryLine));
+  
+  // Footer with same style as header
+  const footerSeparator = '═'.repeat(getTerminalWidth());
+  lines.push(colors.dim(footerSeparator));
+  lines.push(`📊 ${colors.bold(`Summary: ${processedThreads.length} threads, ${nitpicksCount} nitpicks, ${unresolvedCount} unresolved`)}`);
+  lines.push(colors.dim(footerSeparator));
 
   return lines.join('\n');
 }
