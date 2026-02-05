@@ -7,11 +7,11 @@ import {
 
 export type MarkStatus = 'done' | 'skip' | 'later' | 'clear';
 
-export async function runMarkCommand(
+export function runMarkCommand(
   ids: string[],
   status: MarkStatus,
   note?: string
-): Promise<void> {
+): void {
   const context = prepareBatchCommandContext(ids);
 
   // Check if all IDs are invalid

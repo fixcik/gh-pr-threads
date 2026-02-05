@@ -15,7 +15,6 @@ export interface PRReview {
   body: string;
   url: string;
   state: string;
-  bodyText: string;
 }
 
 export interface PRComment {
@@ -36,7 +35,7 @@ export interface FetchPRDataOptions {
   shouldFetchFiles: boolean;
 }
 
-export interface PRData {
+export interface ProcessedPRData {
   threads: Thread[];
   files: PRFile[];
   reviews: PRReview[];
@@ -46,7 +45,7 @@ export interface PRData {
 /**
  * Fetches all PR data in parallel: threads, files, reviews, and comments
  */
-export async function fetchPRData(options: FetchPRDataOptions): Promise<PRData> {
+export async function fetchPRData(options: FetchPRDataOptions): Promise<ProcessedPRData> {
   const { owner, repo, number, targetThreadId, shouldFetchFiles } = options;
   const parallelStartTime = Date.now();
 

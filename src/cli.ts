@@ -11,12 +11,13 @@ import { parsePRInfo } from './utils/pr.js';
 const MARK_STATUSES = ['done', 'skip', 'later'] as const;
 type MarkStatusType = typeof MARK_STATUSES[number];
 
-function validateMarkStatus(status: string | undefined): status is MarkStatusType {
-  if (status && !MARK_STATUSES.includes(status as MarkStatusType)) {
+const SUBCOMMANDS = ['mark', 'reply', 'resolve', 'clear'] as const;
+
+function validateMarkStatus(status: string | undefined): asserts status is MarkStatusType | undefined {
+  if (status !== undefined && !MARK_STATUSES.includes(status as MarkStatusType)) {
     console.error(`Error: Invalid mark status '${status}'. Must be one of: ${MARK_STATUSES.join(', ')}`);
     process.exit(1);
   }
-  return true;
 }
 
 export function parseCliArgs(): Args {
@@ -96,7 +97,7 @@ export function parseCliArgs(): Args {
         console.error(`Error: Invalid status '${status}'. Must be one of: ${validStatuses.join(', ')}`);
         process.exit(1);
       }
-      await runMarkCommand(ids, status as MarkStatus, options.note);
+      runMarkCommand(ids, status as MarkStatus, options.note);
       process.exit(0);
     });
 
@@ -130,8 +131,7 @@ export function parseCliArgs(): Args {
 
   // If a subcommand was executed (mark, reply, resolve, clear), it will call process.exit()
   // and this code won't run. Only run default command parsing if no subcommand was matched.
-  const subcommands = ['mark', 'reply', 'resolve', 'clear'];
-  const isSubcommand = process.argv[2] && subcommands.includes(process.argv[2]);
+  const isSubcommand = process.argv[2] && SUBCOMMANDS.includes(process.argv[2] as typeof SUBCOMMANDS[number]);
 
   if (isSubcommand) {
     // Subcommand will handle its own exit, this is unreachable
