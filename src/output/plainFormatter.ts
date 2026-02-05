@@ -501,6 +501,15 @@ function wrapInQuote(lines: string[], indent: string, colorFn: (s: string) => st
   });
 }
 
+/**
+ * Formats author name with @ prefix and role badges
+ */
+function formatAuthor(author: string, prAuthor: string): string {
+  const isAuthor = author === prAuthor;
+  const badges = isAuthor ? ' (author) (owner)' : '';
+  return `@${author}${badges}`;
+}
+
 function formatThread(thread: ProcessedThread, indent: string, prAuthor: string, filePath: string): string {
   const lines: string[] = [];
   const useEmoji = supportsEmoji();
@@ -528,9 +537,8 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
     // Replies get additional indent for visual nesting (4 spaces to align with main content)
     const commentIndent = i === 0 ? indent : `${indent}    `;
 
-    // Build author display with badges
-    const badges = comment.author === prAuthor ? ' (author owner)' : '';
-    const authorDisplay = `@${comment.author}${badges}`;
+    // Format author with @ and badges
+    const authorDisplay = formatAuthor(comment.author, prAuthor);
 
     if (i === 0) {
       // First comment - show author with user-specific color
@@ -548,8 +556,7 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
     if (comment.reactionGroups && comment.reactionGroups.length > 0) {
       const reactionLines = formatReactionGroups(comment.reactionGroups, useEmoji, commentIndent);
       if (reactionLines) {
-        bodyLines.push('');
-        bodyLines.push('---');
+        // Add empty line before reactions (don't add --- as it may duplicate)
         bodyLines.push('');
         // Split reaction lines and add each one
         reactionLines.split('\n').forEach(line => {
@@ -587,7 +594,7 @@ function formatNitpick(nitpick: Nitpick, indent: string, filePath: string): stri
 
   const author = 'coderabbitai';
   const userColor = getUserColor(author);
-  lines.push(`${indent}${userColor(author)} ${colors.dim('[nitpick]')}:`);
+  lines.push(`${indent}${userColor(`@${author}`)} ${colors.dim('[nitpick]')}:`);
 
   const { lines: bodyLines } = formatCommentBody(nitpick.content, indent, filePath);
   const quotedLines = wrapInQuote(bodyLines, indent, userColor);
