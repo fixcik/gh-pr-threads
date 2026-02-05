@@ -42,10 +42,10 @@ async function main() {
   const { owner, repo, number, showAll, only, includeDone, withResolved, format, ignoreBots, threadId } = parseCliArgs();
   
   debug(`Fetching PR ${owner}/${repo}#${number}`);
-  debug(`Options: showAll=${showAll}, includeDone=${includeDone}, withResolved=${withResolved}, ignoreBots=${ignoreBots}, only=${only.join(',') || 'all'}, format=${format}, threadId=${threadId || 'none'}`);
+  debug(`Options: showAll=${showAll}, includeDone=${includeDone}, withResolved=${withResolved}, ignoreBots=${ignoreBots}, only=${only ? only.join(',') : 'all'}, format=${format}, threadId=${threadId || 'none'}`);
 
   // Create filter function
-  const filter = createFilterFunction(only);
+  const filter = createFilterFunction(only || []);
 
   // Initialize state
   const statePath = getStatePath(owner, repo, number);
@@ -176,7 +176,13 @@ function outputResults(options: OutputOptions): void {
   }
 }
 
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+// Only run main() if this is not a subcommand
+const subcommands = ['mark', 'reply', 'resolve', 'clear'];
+const isSubcommand = process.argv[2] && subcommands.includes(process.argv[2]);
+
+if (!isSubcommand) {
+  main().catch(err => {
+    console.error(err);
+    process.exit(1);
+  });
+}
