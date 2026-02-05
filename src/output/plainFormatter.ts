@@ -155,25 +155,28 @@ function formatMarkdown(text: string): string {
 }
 
 /**
- * Formats diff block with syntax highlighting
+ * Formats diff block with syntax highlighting and gray quote bar
  */
 function formatDiffBlock(code: string, indent: string): string[] {
   const lines: string[] = [];
+  const bar = colors.dim('│');
 
   code.split('\n').forEach(line => {
+    let coloredLine: string;
     if (line.startsWith('+')) {
       // Added line - green
-      lines.push(`${indent}      ${colors.green(line)}`);
+      coloredLine = colors.green(line);
     } else if (line.startsWith('-')) {
       // Removed line - red
-      lines.push(`${indent}      ${colors.red(line)}`);
+      coloredLine = colors.red(line);
     } else if (line.startsWith('@@')) {
       // Hunk header - cyan
-      lines.push(`${indent}      ${colors.cyan(line)}`);
+      coloredLine = colors.cyan(line);
     } else {
       // Context - normal
-      lines.push(`${indent}      ${colors.dim(line)}`);
+      coloredLine = colors.dim(line);
     }
+    lines.push(`${indent}    ${bar}  ${coloredLine}`);
   });
 
   return lines;
@@ -209,33 +212,38 @@ function parseDetailsBlocks(text: string): { text: string; details: Array<{ summ
  */
 function formatSuggestionBlock(code: string, restText: string, indent: string, language: string = 'typescript'): string[] {
   const lines: string[] = [];
-  
+  const bar = colors.dim('│');
+
   // Header like GitHub UI
   lines.push(`${indent}    ${colors.bold(colors.cyan('📝 Suggested change'))}`);
-  lines.push(`${indent}    `);
-  
+  lines.push(`${indent}    ${bar}`);
+
   // Remove trailing newlines from code
   const cleanCode = code.replace(/\n+$/, '');
-  
-  // Show suggestion code with diff-style highlighting
+
+  // Show suggestion code with diff-style highlighting and gray quote bar
   try {
     const highlighted = useColors
       ? highlight(cleanCode, { language, ignoreIllegals: true })
       : cleanCode;
     highlighted.split('\n').forEach(line => {
-      lines.push(`${indent}    ${colors.green('+ ')}${line}`);
+      lines.push(`${indent}    ${bar}  ${colors.green('+ ')}${line}`);
     });
   } catch {
     cleanCode.split('\n').forEach(line => {
-      lines.push(`${indent}    ${colors.green('+ ')}${colors.dim(line)}`);
+      lines.push(`${indent}    ${bar}  ${colors.green('+ ')}${colors.dim(line)}`);
     });
   }
 
   if (restText) {
-    lines.push(`${indent}    `);
+    lines.push(`${indent}    ${bar}`);
     const formatted = formatMarkdown(restText);
     const textLines = wrapText(formatted, `${indent}    `);
-    lines.push(...textLines);
+    // Wrap rest text in quote bar too
+    textLines.forEach(line => {
+      const content = line.replace(new RegExp(`^${indent}    `), '');
+      lines.push(`${indent}    ${bar}  ${content}`);
+    });
   }
 
   return lines;
@@ -279,19 +287,27 @@ function formatMainContent(text: string, indent: string): string[] {
       lines.push('');
     }
 
-    // Apply syntax highlighting
+    // Apply syntax highlighting with quote bar
+    const codeLines: string[] = [];
     try {
       const highlighted = useColors
         ? highlight(code, { language, ignoreIllegals: true })
         : code;
       highlighted.split('\n').forEach(line => {
-        lines.push(`${indent}      ${line}`);
+        codeLines.push(`${indent}      ${line}`);
       });
     } catch {
       code.split('\n').forEach(line => {
-        lines.push(`${indent}      ${colors.dim(line)}`);
+        codeLines.push(`${indent}      ${colors.dim(line)}`);
       });
     }
+
+    // Wrap code block in gray quote bar
+    const bar = colors.dim('│');
+    codeLines.forEach(line => {
+      const content = line.replace(new RegExp(`^${indent}      `), '');
+      lines.push(`${indent}    ${bar}  ${content}`);
+    });
 
     return lines;
   }
@@ -379,19 +395,27 @@ function formatCommentBody(body: string, indent: string, filePath?: string): { l
           lines.push('');
         }
 
-        // Apply syntax highlighting
+        // Apply syntax highlighting with quote bar
+        const codeLines: string[] = [];
         try {
           const highlighted = useColors
             ? highlight(code, { language, ignoreIllegals: true })
             : code;
           highlighted.split('\n').forEach(line => {
-            lines.push(`${indent}      ${line}`);
+            codeLines.push(`${indent}      ${line}`);
           });
         } catch {
           code.split('\n').forEach(line => {
-            lines.push(`${indent}      ${colors.dim(line)}`);
+            codeLines.push(`${indent}      ${colors.dim(line)}`);
           });
         }
+
+        // Wrap code block in gray quote bar
+        const bar = colors.dim('│');
+        codeLines.forEach(line => {
+          const content = line.replace(new RegExp(`^${indent}      `), '');
+          lines.push(`${indent}    ${bar}  ${content}`);
+        });
       } else {
         // Plain text with wrapping
         const formatted = formatMarkdown(detail.content);
