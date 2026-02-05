@@ -47,14 +47,21 @@ export function supportsEmoji(): boolean {
 }
 
 /**
+ * Type guard to check if a value is a valid ReactionType
+ */
+function isValidReaction(value: string): value is ReactionType {
+  return (VALID_REACTIONS as readonly string[]).includes(value);
+}
+
+/**
  * Normalize reaction input to valid GitHub reaction type
  * Accepts: THUMBS_UP, thumbs_up, 👍
  */
 export function normalizeReaction(input: string): ReactionType {
   const normalized = input.trim();
   const upper = normalized.toUpperCase();
-  if (VALID_REACTIONS.includes(upper as ReactionType)) {
-    return upper as ReactionType;
+  if (isValidReaction(upper)) {
+    return upper;
   }
   if (EMOJI_TO_REACTION[normalized]) {
     return EMOJI_TO_REACTION[normalized] as ReactionType;

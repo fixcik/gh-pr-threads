@@ -19,9 +19,11 @@ export function filterThreadById(threads: Thread[], targetThreadId: string): Thr
       const lastColonIdx = targetThreadId.lastIndexOf(':');
       const path = targetThreadId.slice(0, lastColonIdx);
       const lineRange = targetThreadId.slice(lastColonIdx + 1);
-      const [startLine, endLine] = lineRange.split('-').map(Number);
+      const [startRaw, endRaw] = lineRange.split('-');
+      const startLine = Number(startRaw);
+      const endLine = endRaw !== undefined && endRaw !== '' ? Number(endRaw) : undefined;
 
-      if (Number.isNaN(startLine)) {
+      if (Number.isNaN(startLine) || (endRaw !== undefined && (endRaw === '' || Number.isNaN(endLine)))) {
         debug(`Invalid line number in targetThreadId: ${targetThreadId}`);
         return false;
       }
@@ -34,7 +36,7 @@ export function filterThreadById(threads: Thread[], targetThreadId: string): Thr
       }
 
       // Check if thread line falls within the range or matches exactly
-      if (endLine) {
+      if (endLine !== undefined) {
         // Range specified (e.g., "13-26")
         if (thread.line && thread.line >= startLine && thread.line <= endLine) {
           debug(`Thread matched by path:line range`);

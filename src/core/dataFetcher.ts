@@ -77,9 +77,15 @@ export async function fetchPRData(options: FetchPRDataOptions): Promise<Processe
 
   debugTiming(`All parallel fetches completed in ${Date.now() - parallelStartTime}ms`);
 
-  // Calculate total additions and deletions from all files
-  const totalAdditions = filesResult.nodes.reduce((sum, file) => sum + file.additions, 0);
-  const totalDeletions = filesResult.nodes.reduce((sum, file) => sum + file.deletions, 0);
+  // Calculate total additions and deletions
+  // If files were fetched, sum from files (more accurate for filtered views)
+  // Otherwise use totals from PR metadata
+  const totalAdditions = filesResult.nodes.length > 0
+    ? filesResult.nodes.reduce((sum, file) => sum + file.additions, 0)
+    : metadataWithoutFiles.totalAdditions;
+  const totalDeletions = filesResult.nodes.length > 0
+    ? filesResult.nodes.reduce((sum, file) => sum + file.deletions, 0)
+    : metadataWithoutFiles.totalDeletions;
 
   const metadata: PRMetadata = {
     ...metadataWithoutFiles,
@@ -140,7 +146,7 @@ async function fetchFiles(
   if (targetThreadId || !shouldFetchFiles) {
     return {
       nodes: [],
-      cache: {
+      cache: cachedCursors ?? {
         pages: [],
         lastPageHasMore: false,
         totalItems: 0,
@@ -179,7 +185,7 @@ async function fetchReviews(
   if (targetThreadId && !isNitpickId) {
     return {
       nodes: [],
-      cache: {
+      cache: cachedCursors ?? {
         pages: [],
         lastPageHasMore: false,
         totalItems: 0,
@@ -218,7 +224,7 @@ async function fetchComments(
   if (targetThreadId && !isNitpickId) {
     return {
       nodes: [],
-      cache: {
+      cache: cachedCursors ?? {
         pages: [],
         lastPageHasMore: false,
         totalItems: 0,
@@ -247,7 +253,7 @@ async function fetchMetadata(
   owner: string,
   repo: string,
   number: number
-): Promise<Omit<PRMetadata, 'files' | 'totalAdditions' | 'totalDeletions'>> {
+): Promise<Omit<PRMetadata, 'files'>> {
   const startTime = Date.now();
   const metaResult = runGh<PRMetaData>([
     'api',
@@ -266,6 +272,8 @@ async function fetchMetadata(
     state: pr.state,
     isDraft: pr.isDraft,
     mergeable: pr.mergeable,
-    author: pr.author?.login ?? 'unknown'
+    author: pr.author?.login ?? 'unknown',
+    totalAdditions: pr.additions,
+    totalDeletions: pr.deletions
   };
 }
