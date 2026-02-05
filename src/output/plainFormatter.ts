@@ -528,14 +528,17 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
     // Replies get additional indent for visual nesting (4 spaces to align with main content)
     const commentIndent = i === 0 ? indent : `${indent}    `;
 
+    // Build author display with badges
+    const badges = comment.author === prAuthor ? ' (author owner)' : '';
+    const authorDisplay = `@${comment.author}${badges}`;
+
     if (i === 0) {
-      // First comment - show full author name with user-specific color
-      const authorLine = `${indent}${userColor(comment.author)}:`;
+      // First comment - show author with user-specific color
+      const authorLine = `${indent}${userColor(authorDisplay)}:`;
       lines.push(authorLine);
     } else {
-      // Reply - show "author" if PR author, otherwise show login
-      const authorName = comment.author === prAuthor ? 'author' : comment.author;
-      const authorLine = `${indent}  ↳ ${colors.dim(authorName)}:`;
+      // Reply - show with arrow and user-specific color
+      const authorLine = `${indent}  ↳ ${userColor(authorDisplay)}:`;
       lines.push(authorLine);
     }
 
@@ -550,9 +553,7 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
         bodyLines.push('');
         // Split reaction lines and add each one
         reactionLines.split('\n').forEach(line => {
-          // Remove the indent and pipe that formatReactionGroups adds
-          const cleanLine = line.replace(/^.*?│\s\s/, '');
-          bodyLines.push(cleanLine);
+          bodyLines.push(line);
         });
       }
     }
