@@ -11,7 +11,7 @@ import { parsePRInfo } from './utils/pr.js';
 const MARK_STATUSES = ['done', 'skip', 'later'] as const;
 type MarkStatusType = typeof MARK_STATUSES[number];
 
-const SUBCOMMANDS = ['mark', 'reply', 'resolve', 'clear'] as const;
+const SUBCOMMANDS = ['mark', 'reply', 'resolve', 'react', 'clear'] as const;
 
 function validateMarkStatus(status: string | undefined): asserts status is MarkStatusType | undefined {
   if (status !== undefined && !MARK_STATUSES.includes(status as MarkStatusType)) {
@@ -130,6 +130,23 @@ export function parseCliArgs(): Args {
       try {
         validateMarkStatus(options.mark);
         runResolveCommand(ids, options.reply, options.mark);
+        process.exit(0);
+      } catch (error: unknown) {
+        console.error(`❌ ${error instanceof Error ? error.message : String(error)}`);
+        process.exit(1);
+      }
+    });
+
+  // React command
+  program
+    .command('react')
+    .description('Add reaction to comment(s)')
+    .argument('<reaction>', 'Reaction type (THUMBS_UP, ❤️, etc.)')
+    .argument('<ids...>', 'Comment short ID(s) (6 characters each)')
+    .action(async (reaction: string, ids: string[]) => {
+      try {
+        const { runReactCommand } = await import('./commands/react.js');
+        runReactCommand(ids, reaction);
         process.exit(0);
       } catch (error: unknown) {
         console.error(`❌ ${error instanceof Error ? error.message : String(error)}`);
