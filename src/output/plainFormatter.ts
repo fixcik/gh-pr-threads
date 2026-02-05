@@ -17,6 +17,42 @@ const colors = {
   reset: '\u001b[0m'
 };
 
+/**
+ * Generates a consistent color for a username based on hash
+ */
+function getUserColor(username: string): (s: string) => string {
+  if (!useColors) {
+    return (s: string) => s;
+  }
+  
+  // Simple hash function
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = ((hash << 5) - hash) + username.charCodeAt(i);
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  
+  // Available ANSI colors (avoiding white and black for readability)
+  const colorCodes = [
+    31,  // red
+    32,  // green
+    33,  // yellow
+    34,  // blue
+    35,  // magenta
+    36,  // cyan
+    91,  // bright red
+    92,  // bright green
+    93,  // bright yellow
+    94,  // bright blue
+    95,  // bright magenta
+    96   // bright cyan
+  ];
+  
+  const colorCode = colorCodes[Math.abs(hash) % colorCodes.length];
+  
+  return (s: string) => `\u001b[${colorCode}m${s}\u001b[0m`;
+}
+
 interface FileGroup {
   path: string;
   line: number | null;
@@ -168,27 +204,38 @@ function parseDetailsBlocks(text: string): { text: string; details: Array<{ summ
 /**
  * Formats a suggestion block with syntax highlighting
  */
+/**
+ * Formats a suggestion block with syntax highlighting
+ */
 function formatSuggestionBlock(code: string, restText: string, indent: string, language: string = 'typescript'): string[] {
   const lines: string[] = [];
-  lines.push(`${indent}    ${colors.green('suggestion:')}`);
-
+  
+  // Header like GitHub UI
+  lines.push(`${indent}    ${colors.bold(colors.cyan('📝 Suggested change'))}`);
+  lines.push(`${indent}    `);
+  
+  // Remove trailing newlines from code
+  const cleanCode = code.replace(/\n+$/, '');
+  
+  // Show suggestion code with diff-style highlighting
   try {
     const highlighted = useColors
-      ? highlight(code, { language, ignoreIllegals: true })
-      : code;
+      ? highlight(cleanCode, { language, ignoreIllegals: true })
+      : cleanCode;
     highlighted.split('\n').forEach(line => {
-      lines.push(`${indent}      ${line}`);
+      lines.push(`${indent}    ${colors.green('+ ')}${line}`);
     });
   } catch {
-    code.split('\n').forEach(line => {
-      lines.push(`${indent}      ${colors.dim(line)}`);
+    cleanCode.split('\n').forEach(line => {
+      lines.push(`${indent}    ${colors.green('+ ')}${colors.dim(line)}`);
     });
   }
 
   if (restText) {
-    lines.push('');
+    lines.push(`${indent}    `);
     const formatted = formatMarkdown(restText);
-    lines.push(...wrapText(formatted, `${indent}    `));
+    const textLines = wrapText(formatted, `${indent}    `);
+    lines.push(...textLines);
   }
 
   return lines;
@@ -197,25 +244,61 @@ function formatSuggestionBlock(code: string, restText: string, indent: string, l
 /**
  * Formats main content (handles diff blocks or plain markdown)
  */
+/**
+ * Formats main content (handles diff blocks, code blocks, or plain markdown)
+ */
 function formatMainContent(text: string, indent: string): string[] {
+  // Check for diff blocks first
   const diffMatch = text.match(/```diff\n([\s\S]*?)```/);
-  if (!diffMatch) {
-    const formatted = formatMarkdown(text);
-    return wrapText(formatted, `${indent}    `);
+  if (diffMatch) {
+    const lines: string[] = [];
+    const code = diffMatch[1];
+    const restText = text.replace(/```diff\n[\s\S]*?```/, '').trim();
+
+    if (restText) {
+      const formatted = formatMarkdown(restText);
+      lines.push(...wrapText(formatted, `${indent}    `));
+      lines.push('');
+    }
+
+    lines.push(...formatDiffBlock(code, indent));
+    return lines;
   }
 
-  const lines: string[] = [];
-  const code = diffMatch[1];
-  const restText = text.replace(/```diff\n[\s\S]*?```/, '').trim();
+  // Check for regular code blocks with ```language
+  const codeBlockMatch = text.match(/```([a-z]*)\n([\s\S]*?)\n```/);
+  if (codeBlockMatch) {
+    const lines: string[] = [];
+    const language = codeBlockMatch[1] || 'text';
+    const code = codeBlockMatch[2];
+    const restText = text.replace(/```[a-z]*\n[\s\S]*?\n```/, '').trim();
 
-  if (restText) {
-    const formatted = formatMarkdown(restText);
-    lines.push(...wrapText(formatted, `${indent}    `));
-    lines.push('');
+    if (restText) {
+      const formatted = formatMarkdown(restText);
+      lines.push(...wrapText(formatted, `${indent}    `));
+      lines.push('');
+    }
+
+    // Apply syntax highlighting
+    try {
+      const highlighted = useColors
+        ? highlight(code, { language, ignoreIllegals: true })
+        : code;
+      highlighted.split('\n').forEach(line => {
+        lines.push(`${indent}      ${line}`);
+      });
+    } catch {
+      code.split('\n').forEach(line => {
+        lines.push(`${indent}      ${colors.dim(line)}`);
+      });
+    }
+
+    return lines;
   }
 
-  lines.push(...formatDiffBlock(code, indent));
-  return lines;
+  // Plain markdown
+  const formatted = formatMarkdown(text);
+  return wrapText(formatted, `${indent}    `);
 }
 
 /**
@@ -226,9 +309,21 @@ function formatMainContent(text: string, indent: string): string[] {
  * - Outputs <details> blocks as quote with bold header
  * - Wraps long lines according to terminal width
  */
+/**
+ * Formats comment body:
+ * - Shows suggestion code with syntax highlighting
+ * - Highlights markdown (bold, italic, inline code)
+ * - Formats diff blocks with colored highlighting
+ * - Outputs <details> blocks as quote with bold header
+ * - Wraps long lines according to terminal width
+ */
 function formatCommentBody(body: string, indent: string, filePath?: string): { lines: string[]; hasSuggestion: boolean } {
   const lines: string[] = [];
-  const { text: mainText, details } = parseDetailsBlocks(body);
+  
+  // Normalize line endings (GitHub can send \r\n)
+  const normalizedBody = body.replace(/\r\n/g, '\n');
+  
+  const { text: mainText, details } = parseDetailsBlocks(normalizedBody);
   const suggestionMatch = mainText.match(/```suggestion\n([\s\S]*?)```/);
 
   let hasSuggestion = false;
@@ -242,14 +337,15 @@ function formatCommentBody(body: string, indent: string, filePath?: string): { l
     lines.push(...formatMainContent(mainText, indent));
   }
 
-  // Output <details> blocks as quote (with indent)
+  // Output <details> blocks (without quote bars - will be added by formatThread)
   details.forEach(detail => {
+    lines.push('');
     lines.push('');
 
     // Summary as bold header with indent (with wrapping)
-    const summaryFormatted = colors.bold('> ' + detail.summary);
+    const summaryFormatted = colors.bold(detail.summary);
     lines.push(...wrapText(summaryFormatted, `${indent}    `));
-    lines.push(`${indent}    >`);
+    lines.push('');
 
     // Check for diff in details
     const diffMatch = detail.content.match(/```diff\n([\s\S]*?)```/);
@@ -260,22 +356,66 @@ function formatCommentBody(body: string, indent: string, filePath?: string): { l
 
       if (restText) {
         const formatted = formatMarkdown(restText);
-        lines.push(...wrapText(formatted, `${indent}    > `));
-        lines.push(`${indent}    >`);
+        lines.push(...wrapText(formatted, `${indent}    `));
+        lines.push('');
       }
 
-      // Diff in quote (no wrapping)
+      // Diff (no wrapping)
       formatDiffBlock(code, indent).forEach(line => {
-        lines.push(`${indent}    >` + line.slice(indent.length + 4));
+        lines.push(line);
       });
     } else {
-      // Plain text in quote with wrapping
-      const formatted = formatMarkdown(detail.content);
-      lines.push(...wrapText(formatted, `${indent}    > `));
+      // Check for regular code blocks with ```language
+      const codeBlockMatch = detail.content.match(/```([a-z]*)\n([\s\S]*?)\n```/);
+      
+      if (codeBlockMatch) {
+        const language = codeBlockMatch[1] || 'text';
+        const code = codeBlockMatch[2];
+        const restText = detail.content.replace(/```[a-z]*\n[\s\S]*?\n```/, '').trim();
+
+        if (restText) {
+          const formatted = formatMarkdown(restText);
+          lines.push(...wrapText(formatted, `${indent}    `));
+          lines.push('');
+        }
+
+        // Apply syntax highlighting
+        try {
+          const highlighted = useColors
+            ? highlight(code, { language, ignoreIllegals: true })
+            : code;
+          highlighted.split('\n').forEach(line => {
+            lines.push(`${indent}      ${line}`);
+          });
+        } catch {
+          code.split('\n').forEach(line => {
+            lines.push(`${indent}      ${colors.dim(line)}`);
+          });
+        }
+      } else {
+        // Plain text with wrapping
+        const formatted = formatMarkdown(detail.content);
+        lines.push(...wrapText(formatted, `${indent}    `));
+      }
     }
   });
 
   return { lines, hasSuggestion };
+}
+
+/**
+ * Wraps lines in a quote block with vertical bar (colored based on author)
+ */
+function wrapInQuote(lines: string[], indent: string, colorFn: (s: string) => string): string[] {
+  const bar = colorFn('│');
+  return lines.map(line => {
+    // If line is empty or just whitespace, show just the bar
+    if (!line.trim()) {
+      return `${indent}  ${bar}`;
+    }
+    // Otherwise add bar with double space before content
+    return `${indent}  ${bar}  ${line.replace(new RegExp(`^${indent}    `), '')}`;
+  });
 }
 
 function formatThread(thread: ProcessedThread, indent: string, prAuthor: string, filePath: string): string {
@@ -299,9 +439,11 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
   lines.push('');
 
   thread.comments.forEach((comment, i) => {
+    const userColor = getUserColor(comment.author);
+    
     if (i === 0) {
-      // First comment - show full author name
-      const authorLine = `${indent}${colors.cyan(comment.author)}:`;
+      // First comment - show full author name with user-specific color
+      const authorLine = `${indent}${userColor(comment.author)}:`;
       lines.push(authorLine);
     } else {
       // Reply - show "author" if PR author, otherwise show login
@@ -311,7 +453,8 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
     }
 
     const { lines: bodyLines } = formatCommentBody(comment.body, indent, filePath);
-    lines.push(...bodyLines);
+    const quotedLines = wrapInQuote(bodyLines, indent, userColor);
+    lines.push(...quotedLines);
 
     if (i < thread.comments.length - 1) {
       lines.push('');
@@ -337,10 +480,13 @@ function formatNitpick(nitpick: Nitpick, indent: string, filePath: string): stri
 
   lines.push('');
 
-  lines.push(`${indent}${colors.cyan('coderabbitai')} ${colors.dim('[nitpick]')}:`);
+  const author = 'coderabbitai';
+  const userColor = getUserColor(author);
+  lines.push(`${indent}${userColor(author)} ${colors.dim('[nitpick]')}:`);
 
   const { lines: bodyLines } = formatCommentBody(nitpick.content, indent, filePath);
-  lines.push(...bodyLines);
+  const quotedLines = wrapInQuote(bodyLines, indent, userColor);
+  lines.push(...quotedLines);
 
   return lines.join('\n');
 }
