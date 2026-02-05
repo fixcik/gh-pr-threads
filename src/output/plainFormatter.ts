@@ -464,7 +464,10 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
 
   thread.comments.forEach((comment, i) => {
     const userColor = getUserColor(comment.author);
-    
+
+    // Replies get additional indent for visual nesting
+    const commentIndent = i === 0 ? indent : `${indent}  `;
+
     if (i === 0) {
       // First comment - show full author name with user-specific color
       const authorLine = `${indent}${userColor(comment.author)}:`;
@@ -476,8 +479,8 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
       lines.push(authorLine);
     }
 
-    const { lines: bodyLines } = formatCommentBody(comment.body, indent, filePath);
-    const quotedLines = wrapInQuote(bodyLines, indent, userColor);
+    const { lines: bodyLines } = formatCommentBody(comment.body, commentIndent, filePath);
+    const quotedLines = wrapInQuote(bodyLines, commentIndent, userColor);
     lines.push(...quotedLines);
 
     if (i < thread.comments.length - 1) {
