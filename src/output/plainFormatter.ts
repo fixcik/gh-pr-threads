@@ -30,8 +30,14 @@ export function formatReactionGroups(groups: ReactionGroup[], useEmoji: boolean)
   return groups
     .map(group => {
       const icon = formatReaction(group.content, useEmoji);
-      const users = group.reactors.nodes.map(r => `@${r.login}`).join(', ');
-      return `  ${icon} (${group.reactors.totalCount}): ${users}`;
+      const totalCount = group.reactors.totalCount;
+      const displayedUsers = group.reactors.nodes.slice(0, 3);
+      const remainingCount = totalCount - displayedUsers.length;
+
+      const usersList = displayedUsers.map(r => `@${r.login}`).join(', ');
+      const remaining = remainingCount > 0 ? ` and ${remainingCount} more` : '';
+
+      return `  ${icon} ${usersList}${remaining}`;
     })
     .join('\n');
 }
