@@ -51,15 +51,47 @@ export function filterThreadsOnly(context: BatchCommandContext): {
   const threads = new Map<string, string>();
   const nonThreads: string[] = [];
 
-  for (const [shortId, fullId] of context.resolvedIds) {
+  Array.from(context.resolvedIds.entries()).forEach(([shortId, fullId]) => {
     if (fullId.startsWith('PRRT_')) {
       threads.set(shortId, fullId);
     } else {
       nonThreads.push(shortId);
     }
-  }
+  });
 
   return { threads, nonThreads };
+}
+
+/**
+ * Generic batch operation helper that processes items and saves state once
+ */
+function processBatchOperation(
+  context: BatchCommandContext,
+  shortIds: string[],
+  operation: (state: State, fullId: string) => boolean,
+  errorMessage: string
+): BatchResult {
+  const result: BatchResult = { successful: [], failed: [] };
+
+  for (const shortId of shortIds) {
+    const fullId = context.resolvedIds.get(shortId);
+    if (fullId) {
+      const success = operation(context.state, fullId);
+      if (success) {
+        result.successful.push(shortId);
+      } else {
+        result.failed.push({ id: shortId, error: errorMessage });
+      }
+    } else {
+      result.failed.push({ id: shortId, error: 'Not found in state' });
+    }
+  }
+
+  if (result.successful.length > 0) {
+    saveState(context.statePath, context.state);
+  }
+
+  return result;
 }
 
 /**
@@ -71,27 +103,12 @@ export function markBatchAndSave(
   status: 'done' | 'skip' | 'later',
   note?: string
 ): BatchResult {
-  const result: BatchResult = { successful: [], failed: [] };
-
-  for (const shortId of shortIds) {
-    const fullId = context.resolvedIds.get(shortId);
-    if (fullId) {
-      const success = markItem(context.state, fullId, status, note);
-      if (success) {
-        result.successful.push(shortId);
-      } else {
-        result.failed.push({ id: shortId, error: 'Failed to mark item' });
-      }
-    } else {
-      result.failed.push({ id: shortId, error: 'Not found in state' });
-    }
-  }
-
-  if (result.successful.length > 0) {
-    saveState(context.statePath, context.state);
-  }
-
-  return result;
+  return processBatchOperation(
+    context,
+    shortIds,
+    (state, fullId) => markItem(state, fullId, status, note),
+    'Failed to mark item'
+  );
 }
 
 /**
@@ -101,58 +118,37 @@ export function clearBatchAndSave(
   context: BatchCommandContext,
   shortIds: string[]
 ): BatchResult {
-  const result: BatchResult = { successful: [], failed: [] };
-
-  for (const shortId of shortIds) {
-    const fullId = context.resolvedIds.get(shortId);
-    if (fullId) {
-      const success = clearMark(context.state, fullId);
-      if (success) {
-        result.successful.push(shortId);
-      } else {
-        result.failed.push({ id: shortId, error: 'Failed to clear mark' });
-      }
-    } else {
-      result.failed.push({ id: shortId, error: 'Not found in state' });
-    }
-  }
-
-  if (result.successful.length > 0) {
-    saveState(context.statePath, context.state);
-  }
-
-  return result;
+  return processBatchOperation(
+    context,
+    shortIds,
+    (state, fullId) => clearMark(state, fullId),
+    'Failed to clear mark'
+  );
 }
 
 /**
  * Reports batch operation results to console
  */
 /**
- * Validates batch command context and exits if all IDs are invalid
+ * Validates batch command context and throws if all IDs are invalid
  */
 export function validateBatchContext(context: BatchCommandContext): void {
   if (context.resolvedIds.size === 0) {
-    console.error(`❌ None of the provided IDs were found in state. Run gh-pr-threads first to fetch threads.`);
-    for (const id of context.invalidIds) {
-      console.error(`   - ${id}: Not found`);
-    }
-    process.exit(1);
+    const details = context.invalidIds.map(id => `   - ${id}: Not found`).join('\n');
+    throw new Error(`None of the provided IDs were found in state. Run gh-pr-threads first to fetch threads.\n${details}`);
   }
 }
 
 /**
- * Validates that context contains only threads and exits if no threads found
+ * Validates that context contains only threads and throws if no threads found
  */
 export function validateThreadsOnly(
   threads: Map<string, string>,
   nonThreads: string[]
 ): void {
   if (threads.size === 0) {
-    console.error(`❌ None of the provided IDs are review threads. This command only works with threads.`);
-    for (const id of nonThreads) {
-      console.error(`   - ${id}: Is a nitpick, not a thread`);
-    }
-    process.exit(1);
+    const details = nonThreads.map(id => `   - ${id}: Is a nitpick, not a thread`).join('\n');
+    throw new Error(`None of the provided IDs are review threads. This command only works with threads.\n${details}`);
   }
 }
 

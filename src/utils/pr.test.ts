@@ -78,9 +78,7 @@ describe('detectPR', () => {
       throw new Error('Command failed');
     });
 
-    expect(() => detectPR()).toThrow(
-      'Could not detect PR. Please provide a PR URL or use --owner, --repo, --number options.'
-    );
+    expect(() => detectPR()).toThrow(/Could not detect PR.*Please provide a PR URL or use --owner, --repo, --number options/);
   });
 
   it('should throw error when not in a git repository', () => {
@@ -88,9 +86,7 @@ describe('detectPR', () => {
       throw new Error('not a git repository');
     });
 
-    expect(() => detectPR()).toThrow(
-      'Could not detect PR. Please provide a PR URL or use --owner, --repo, --number options.'
-    );
+    expect(() => detectPR()).toThrow(/Could not detect PR.*Please provide a PR URL or use --owner, --repo, --number options/);
   });
 
   it('should handle org names with special characters', () => {

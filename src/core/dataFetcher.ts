@@ -183,6 +183,6 @@ async function fetchMetadata(
     state: pr.state,
     isDraft: pr.isDraft,
     mergeable: pr.mergeable,
-    author: pr.author.login
+    author: pr.author?.login ?? 'unknown'
   };
 }

@@ -45,7 +45,7 @@
     "vitest-mock-extended": "^3.1.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19.0"
   },
   "keywords": [
     "github",
@@ -74,7 +74,7 @@
   "nano-staged": {
     "*.ts": [
       "eslint --fix",
-      "bash -c 'tsc --noEmit'"
+      "tsc --noEmit"
     ]
   }
 }

@@ -108,10 +108,15 @@ export function parseCliArgs(): Args {
     .argument('<message>', 'Reply message')
     .argument('<ids...>', 'Thread short ID(s) (6 characters each)')
     .option('--mark <status>', 'Also mark as done/skip/later after replying')
-    .action(async (message, ids, options) => {
-      validateMarkStatus(options.mark);
-      await runReplyCommand(ids, message, options.mark);
-      process.exit(0);
+    .action((message, ids, options) => {
+      try {
+        validateMarkStatus(options.mark);
+        runReplyCommand(ids, message, options.mark);
+        process.exit(0);
+      } catch (error: unknown) {
+        console.error(`❌ ${error instanceof Error ? error.message : String(error)}`);
+        process.exit(1);
+      }
     });
 
   // Resolve command
@@ -121,10 +126,15 @@ export function parseCliArgs(): Args {
     .argument('<ids...>', 'Thread short ID(s) (6 characters each)')
     .option('--reply <message>', 'Add reply before resolving')
     .option('--mark <status>', 'Also mark as done/skip/later after resolving')
-    .action(async (ids, options) => {
-      validateMarkStatus(options.mark);
-      await runResolveCommand(ids, options.reply, options.mark);
-      process.exit(0);
+    .action((ids, options) => {
+      try {
+        validateMarkStatus(options.mark);
+        runResolveCommand(ids, options.reply, options.mark);
+        process.exit(0);
+      } catch (error: unknown) {
+        console.error(`❌ ${error instanceof Error ? error.message : String(error)}`);
+        process.exit(1);
+      }
     });
 
   program.parse();

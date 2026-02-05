@@ -63,6 +63,18 @@ async function main() {
   // Resolve target thread ID if specified
   const targetThreadId = resolveThreadId(threadId, state);
 
+  // Validate unknown short IDs to avoid silent "zero threads" output
+  if (threadId && targetThreadId === threadId) {
+    const looksLikePath = threadId.includes(':') && threadId.includes('/');
+    const looksLikeGraphql = /^PRR[CT]_/.test(threadId);
+    if (!looksLikePath && !looksLikeGraphql) {
+      console.error(`Error: Thread '${threadId}' not found in PR ${owner}/${repo}#${number}`);
+      console.error(`State file: ${statePath}`);
+      console.error(`Hint: Run without --thread first to populate thread IDs.`);
+      process.exit(1);
+    }
+  }
+
   // Fetch all PR data in parallel
   debug('Fetching PR data in parallel: threads, files, reviews, comments...');
   const prData = await fetchPRData({
