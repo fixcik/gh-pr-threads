@@ -8,6 +8,7 @@ export function cleanCommentBody(body: string): string {
   let cleaned = body
     .replace(/<details>\s*<summary>🧩 Analysis chain<\/summary>[\s\S]*?<\/details>/g, '')
     .replace(/<details>\s*<summary>🤖 Prompt for AI Agents<\/summary>[\s\S]*?<\/details>/g, '')
+    .replace(/<details>\s*<summary>🧠 Learnings used<\/summary>[\s\S]*?<\/details>/g, '')
     .replace(/<!-- internal state start -->[\s\S]*?<!-- internal state end -->/g, '')
     .replace(/<details>\s*<summary>❤️ Share<\/summary>[\s\S]*?<\/details>/g, '')
     .replace(/## Sequence Diagram\(s\)[\s\S]*?(?=##|$)/g, '')
