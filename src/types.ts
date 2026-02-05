@@ -14,6 +14,23 @@ export interface ThreadComment {
   createdAt: string;
   path: string;
   line: number | null;
+  reactionGroups?: ReactionGroup[];
+}
+
+// Reactor - user/bot who added a reaction
+export interface Reactor {
+  login: string;
+}
+
+// Group of reactions of the same type
+export interface ReactionGroup {
+  content: string;           // THUMBS_UP, HEART, ROCKET, etc.
+  createdAt: string;         // ISO timestamp of first reaction
+  viewerHasReacted: boolean; // whether current user reacted
+  reactors: {
+    totalCount: number;
+    nodes: Reactor[];
+  };
 }
 
 export interface Thread {
