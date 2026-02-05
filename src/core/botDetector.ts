@@ -10,5 +10,5 @@ export function isBot(author: { login: string; __typename?: string }): boolean {
   }
 
   // 2. Check against known bot usernames
-  return DEFAULT_BOT_USERNAMES.includes(author.login.toLowerCase());
+  return author.login ? DEFAULT_BOT_USERNAMES.includes(author.login.toLowerCase()) : false;
 }

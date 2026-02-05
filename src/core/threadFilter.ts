@@ -21,6 +21,11 @@ export function filterThreadById(threads: Thread[], targetThreadId: string): Thr
       const lineRange = targetThreadId.slice(lastColonIdx + 1);
       const [startLine] = lineRange.split('-').map(Number);
 
+      if (Number.isNaN(startLine)) {
+        debug(`Invalid line number in targetThreadId: ${targetThreadId}`);
+        return false;
+      }
+
       debug(`Checking thread: path=${thread.path}, line=${thread.line} against path=${path}, startLine=${startLine}`);
       
       if (thread.path === path && thread.line === startLine) {

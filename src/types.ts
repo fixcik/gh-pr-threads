@@ -32,7 +32,7 @@ export interface Thread {
   };
 }
 
-export interface PRData {
+export interface PRDataResponse {
   repository: {
     pullRequest: {
       number: number;
@@ -73,7 +73,6 @@ export interface PRData {
           body: string;
           url: string;
           state: string;
-          bodyText: string;
         }>;
       };
       comments: {

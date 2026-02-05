@@ -2,7 +2,7 @@ import Debug from 'debug';
 import { runGh } from './client.js';
 import { THREAD_COMMENTS_QUERY } from './queries.js';
 import type { Thread, ThreadComment } from '../types.js';
-import type { PRData, ThreadCommentsData, PageInfo } from './apiTypes.js';
+import type { GraphQLPRResponse, ThreadCommentsData, PageInfo } from './apiTypes.js';
 
 const debug = Debug('gh-pr-threads:fetcher');
 
@@ -11,8 +11,8 @@ export interface FetchPagesOptions<T> {
   repo: string;
   number: number;
   queryPattern: string;
-  getNodes: (pr: PRData['data']['repository']['pullRequest']) => T[];
-  getPageInfo: (pr: PRData['data']['repository']['pullRequest']) => PageInfo;
+  getNodes: (pr: GraphQLPRResponse['data']['repository']['pullRequest']) => T[];
+  getPageInfo: (pr: GraphQLPRResponse['data']['repository']['pullRequest']) => PageInfo;
 }
 
 export async function fetchAllPages<T = unknown>(options: FetchPagesOptions<T>): Promise<T[]> {
@@ -34,7 +34,7 @@ export async function fetchAllPages<T = unknown>(options: FetchPagesOptions<T>):
       `-f query='${queryPattern}'`
     ].filter(Boolean);
 
-    const result = runGh<PRData>(ghArgs);
+    const result = runGh<GraphQLPRResponse>(ghArgs);
     const pr = result.data.repository.pullRequest;
 
     const nodes = getNodes(pr);

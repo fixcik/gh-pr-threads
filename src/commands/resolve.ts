@@ -38,7 +38,8 @@ export async function runResolveCommand(
 
   const result: BatchResult = { successful: [], failed: [] };
 
-  // Execute resolve operations in parallel
+  // Execute resolve operations (sequentially via execSync, but processed as batch)
+  // Note: If reply succeeds but resolve fails, the reply is still posted
   const resolvePromises = Array.from(threads.entries()).map(async ([shortId, fullId]) => {
     try {
       // Optionally reply first

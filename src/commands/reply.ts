@@ -38,7 +38,7 @@ export async function runReplyCommand(
 
   const result: BatchResult = { successful: [], failed: [] };
 
-  // Execute replies in parallel
+  // Execute replies (sequentially via execSync, but processed as batch)
   const replyPromises = Array.from(threads.entries()).map(async ([shortId, fullId]) => {
     try {
       const mutationResult = runGhMutation<AddReplyMutationData>(REPLY_MUTATION, {

@@ -18,7 +18,7 @@ export interface GraphQLResponse<T = unknown> {
 }
 
 // Repository Pull Request response structure (wrapped in data)
-export interface PRData {
+export interface GraphQLPRResponse {
   data: {
     repository: {
       pullRequest: {
