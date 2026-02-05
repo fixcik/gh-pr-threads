@@ -8,25 +8,19 @@ import { formatPlainOutput } from './output/plainFormatter.js';
 import { setImageStoragePath } from './utils/images.js';
 import { resolveThreadId } from './core/threadResolver.js';
 import { filterThreadById } from './core/threadFilter.js';
+import { filterNitpicksById } from './core/nitpickFilter.js';
 import { fetchPRData } from './core/dataFetcher.js';
 import { processThreads } from './core/threadProcessor.js';
 import { processBotSummaries } from './core/botProcessor.js';
 import type { ProcessedThread, BotSummary, Thread } from './types.js';
+import type { PRMetadata } from './core/dataFetcher.js';
 
 const debug = Debug('gh-pr-threads');
 const debugTiming = Debug('gh-pr-threads:timing');
 
 interface OutputOptions {
   format: string;
-  prMeta: {
-    number: number;
-    title: string;
-    state: string;
-    author: string;
-    files: unknown[];
-    isDraft: boolean;
-    mergeable: string;
-  };
+  prMeta: PRMetadata;
   statePath: string;
   processedThreads: ProcessedThread[];
   botSummaries: BotSummary[];
@@ -46,7 +40,7 @@ async function main() {
     return;
   }
 
-  const { owner, repo, number, showAll, only, includeDone, withResolved, format, ignoreBots, threadId } = args;
+  const { owner, repo, number, showAll, only, includeDone, withResolved, format, ignoreBots, threadId, noCache, cacheTtl } = args;
 
   debug(`Fetching PR ${owner}/${repo}#${number}`);
   debug(`Options: showAll=${showAll}, includeDone=${includeDone}, withResolved=${withResolved}, ignoreBots=${ignoreBots}, only=${only ? only.join(',') : 'all'}, format=${format}, threadId=${threadId || 'none'}`);
@@ -82,7 +76,9 @@ async function main() {
     repo,
     number,
     targetThreadId,
-    shouldFetchFiles: filter('files')
+    shouldFetchFiles: filter('files'),
+    cursorCache: noCache ? undefined : state.cursorCache,
+    cacheTtl
   });
 
   // Filter threads if targeting specific thread
@@ -108,7 +104,7 @@ async function main() {
 
   // Process bot summaries
   debug('Processing bot summaries...');
-  const { botSummaries, allNitpicks } = !targetThreadId && !ignoreBots && (filter('summaries') || filter('nitpicks'))
+  const { botSummaries, allNitpicks } = !ignoreBots && (filter('summaries') || filter('nitpicks'))
     ? processBotSummaries({
         comments: prData.comments,
         reviews: prData.reviews,
@@ -119,21 +115,35 @@ async function main() {
       })
     : { botSummaries: [], allNitpicks: [] };
 
-  // Register IDs and save state
+  // Filter nitpicks if targeting specific thread/nitpick
+  const nitpicksToDisplay = targetThreadId
+    ? filterNitpicksById(allNitpicks, targetThreadId)
+    : allNitpicks;
+
+  // Register IDs and save state with updated cursor cache
   registerIds(state, processedThreads, allNitpicks);
+  state.cursorCache = prData.updatedCursorCache;
+  state.updatedAt = new Date().toISOString();
   saveState(statePath, state);
 
   const totalTime = Date.now() - startTime;
   debugTiming(`Total execution time: ${totalTime}ms`);
   debug('Output ready');
 
-  // Output results in selected format
+  // Output results in selected format (use filtered nitpicks in bot summaries)
+  const botSummariesToDisplay = targetThreadId && nitpicksToDisplay.length > 0 && botSummaries.length > 0
+    ? botSummaries.map(summary => ({
+        ...summary,
+        nitpicks: summary.nitpicks?.filter(n => nitpicksToDisplay.some(fn => fn.id === n.id))
+      })).filter(summary => summary.nitpicks && summary.nitpicks.length > 0)
+    : botSummaries;
+
   outputResults({
     format,
     prMeta: prData.metadata,
     statePath,
     processedThreads,
-    botSummaries,
+    botSummaries: botSummariesToDisplay,
     allThreads: prData.threads,
     filter
   });
