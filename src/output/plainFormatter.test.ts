@@ -89,4 +89,42 @@ describe('plainFormatter reactions', () => {
     const result = formatReactionGroups([], true);
     expect(result).toBe('');
   });
+
+  it('should filter out reactions with zero totalCount', () => {
+    const groups: ReactionGroup[] = [
+      {
+        content: 'THUMBS_UP',
+        createdAt: '2026-02-05T10:00:00Z',
+        viewerHasReacted: false,
+        reactors: {
+          totalCount: 0,
+          nodes: []
+        }
+      },
+      {
+        content: 'HEART',
+        createdAt: '2026-02-05T10:00:00Z',
+        viewerHasReacted: false,
+        reactors: {
+          totalCount: 2,
+          nodes: [{ login: 'user1' }, { login: 'user2' }]
+        }
+      },
+      {
+        content: 'ROCKET',
+        createdAt: '2026-02-05T10:00:00Z',
+        viewerHasReacted: false,
+        reactors: {
+          totalCount: 0,
+          nodes: []
+        }
+      }
+    ];
+
+    const result = formatReactionGroups(groups, true);
+
+    expect(result).toContain('❤️ @user1, @user2');
+    expect(result).not.toContain('👍');
+    expect(result).not.toContain('🚀');
+  });
 });

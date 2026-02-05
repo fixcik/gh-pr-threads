@@ -27,7 +27,14 @@ export function formatReactionGroups(groups: ReactionGroup[], useEmoji: boolean)
     return '';
   }
 
-  return groups
+  // Filter out reactions with zero count
+  const nonEmptyGroups = groups.filter(group => group.reactors.totalCount > 0);
+
+  if (nonEmptyGroups.length === 0) {
+    return '';
+  }
+
+  return nonEmptyGroups
     .map(group => {
       const icon = formatReaction(group.content, useEmoji);
       const totalCount = group.reactors.totalCount;
@@ -521,6 +528,15 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
     // Replies get additional indent for visual nesting (4 spaces to align with main content)
     const commentIndent = i === 0 ? indent : `${indent}    `;
 
+    // Add reactions if present - show them BEFORE author line
+    if (comment.reactionGroups && comment.reactionGroups.length > 0) {
+      const reactionText = formatReactionGroups(comment.reactionGroups, useEmoji);
+      if (reactionText) {
+        lines.push(reactionText);
+        lines.push('');
+      }
+    }
+
     if (i === 0) {
       // First comment - show full author name with user-specific color
       const authorLine = `${indent}${userColor(comment.author)}:`;
@@ -535,13 +551,6 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
     const { lines: bodyLines } = formatCommentBody(comment.body, commentIndent, filePath);
     const quotedLines = wrapInQuote(bodyLines, commentIndent, userColor);
     lines.push(...quotedLines);
-
-    // Add reactions if present
-    if (comment.reactionGroups && comment.reactionGroups.length > 0) {
-      const reactionText = formatReactionGroups(comment.reactionGroups, useEmoji);
-      lines.push('');
-      lines.push(reactionText);
-    }
 
     if (i < thread.comments.length - 1) {
       lines.push('');
