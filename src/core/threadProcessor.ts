@@ -60,7 +60,8 @@ export async function processThreads(options: ProcessThreadsOptions): Promise<Pr
         author: c.author.login,
         body: cleanCommentBody(c.body),
         url: c.url,
-        createdAt: c.createdAt
+        createdAt: c.createdAt,
+        ...(c.reactionGroups && c.reactionGroups.length > 0 && { reactionGroups: c.reactionGroups })
       }))
     });
   }
