@@ -102,6 +102,8 @@ export interface PRMetaData {
           login: string;
           __typename?: string;
         };
+        additions: number;
+        deletions: number;
       };
     };
   };

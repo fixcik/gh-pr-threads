@@ -122,7 +122,9 @@ async function main() {
 
   // Register IDs and save state with updated cursor cache
   registerIds(state, processedThreads, allNitpicks);
-  state.cursorCache = prData.updatedCursorCache;
+  if (!noCache) {
+    state.cursorCache = prData.updatedCursorCache;
+  }
   state.updatedAt = new Date().toISOString();
   saveState(statePath, state);
 
@@ -131,10 +133,11 @@ async function main() {
   debug('Output ready');
 
   // Output results in selected format (use filtered nitpicks in bot summaries)
-  const botSummariesToDisplay = targetThreadId && nitpicksToDisplay.length > 0 && botSummaries.length > 0
+  const nitpickIdSet = new Set(nitpicksToDisplay.map(n => n.id));
+  const botSummariesToDisplay = targetThreadId && nitpickIdSet.size > 0 && botSummaries.length > 0
     ? botSummaries.map(summary => ({
         ...summary,
-        nitpicks: summary.nitpicks?.filter(n => nitpicksToDisplay.some(fn => fn.id === n.id))
+        nitpicks: summary.nitpicks?.filter(n => nitpickIdSet.has(n.id))
       })).filter(summary => summary.nitpicks && summary.nitpicks.length > 0)
     : botSummaries;
 

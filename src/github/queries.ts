@@ -85,6 +85,8 @@ export const META_QUERY = `
         author { login __typename }
         isDraft
         mergeable
+        additions
+        deletions
       }
     }
   }

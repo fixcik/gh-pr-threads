@@ -106,8 +106,8 @@ describe('plainFormatter reactions', () => {
     const customIndent = '      '; // 6 spaces
     const result = formatReactionGroups(groups, true, customIndent);
 
-    // Verify the custom indent is applied: indent (6 spaces) + 2 spaces + bar + 2 spaces
-    expect(result).toMatch(/^ {8}│ {2}👍/); // 8 spaces total (6 + 2), then bar, then 2 spaces
+    // Verify the custom indent is applied: indent (6 spaces) + 4 spaces (bar added by wrapInQuote)
+    expect(result).toMatch(/^ {10}👍/); // 10 spaces total (6 + 4), then emoji
     expect(result).toContain('@user1');
   });
 

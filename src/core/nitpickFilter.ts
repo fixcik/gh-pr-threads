@@ -32,6 +32,11 @@ export function filterNitpicksById(nitpicks: Nitpick[], targetId: string): Nitpi
       const nitpickLine = nitpick.line;
       const [nitpickStart, nitpickEnd] = nitpickLine.split('-').map(Number);
 
+      if (Number.isNaN(nitpickStart)) {
+        debug(`Skipping nitpick with invalid line format: ${nitpickLine}`);
+        return false;
+      }
+
       debug(`Checking nitpick: path=${nitpick.path}, line=${nitpickLine} against path=${targetPath}, line=${lineRange}`);
 
       // Check if paths match

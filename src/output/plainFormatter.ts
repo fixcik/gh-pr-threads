@@ -14,7 +14,7 @@ function getTerminalWidth(): number {
 }
 
 // Use larger default for text wrapping
-const terminalWidth = process.stdout.columns || 120;
+const terminalWidth = getTerminalWidth();
 
 const colors = {
   bold: (s: string) => useColors ? `\u001b[1m${s}\u001b[0m` : s,
@@ -54,8 +54,8 @@ export function formatReactionGroups(groups: ReactionGroup[], useEmoji: boolean,
       const usersList = displayedUsers.map(r => `@${r.login}`).join(', ');
       const remaining = remainingCount > 0 ? ` and ${remainingCount} more` : '';
 
-      // Match wrapInQuote formatting: indent + 2 spaces + bar + 2 spaces + content
-      return `${indent}  │  ${icon} ${usersList}${remaining}`;
+      // Keep consistent with wrapInQuote: indent + 4 spaces (bar added later)
+      return `${indent}    ${icon} ${usersList}${remaining}`;
     })
     .join('\n');
 }
@@ -599,7 +599,10 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
     }
 
     const { lines: bodyLines } = formatCommentBody(comment.body, commentIndent, filePath);
-    
+
+    // Add empty line at the start of quote for visual separation from author
+    bodyLines.unshift('');
+
     // Add reactions if present - add to bodyLines before wrapping in quote
     if (comment.reactionGroups && comment.reactionGroups.length > 0) {
       const reactionLines = formatReactionGroups(comment.reactionGroups, useEmoji, commentIndent);
@@ -612,7 +615,10 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
         });
       }
     }
-    
+
+    // Add empty line at the end of quote for symmetry
+    bodyLines.push('');
+
     const quotedLines = wrapInQuote(bodyLines, commentIndent, userColor);
     lines.push(...quotedLines);
 
@@ -726,12 +732,12 @@ export function formatPlainOutput(options: FormatPlainOutputOptions): string {
   // Header
   const separator = '═'.repeat(getTerminalWidth());
   lines.push(colors.dim(separator));
-  lines.push(`🔍 ${colors.bold(`PR #${prMeta.number}: ${prMeta.title}`)}`);
+  lines.push(`  🔍 ${colors.bold(`PR #${prMeta.number}: ${prMeta.title}`)}`);
   
   // Stats with colored additions/deletions
   const additions = colors.greenBright(`+${prMeta.totalAdditions}`);
   const deletions = colors.yellow(`-${prMeta.totalDeletions}`);
-  lines.push(`📊 Status: ${prMeta.state} | Author: ${prMeta.author} | Files: ${prMeta.files.length} | ${additions} ${deletions}`);
+  lines.push(`  📊 Status: ${prMeta.state} | Author: ${prMeta.author} | Files: ${prMeta.files.length} | ${additions} ${deletions}`);
   
   lines.push(colors.dim(separator));
   lines.push('');
@@ -795,10 +801,11 @@ export function formatPlainOutput(options: FormatPlainOutputOptions): string {
 
       // Full width separator like footer
       const separator = '─'.repeat(getTerminalWidth());
+      lines.push('');
       lines.push(separator);
       
       const fileStats = colors.dim(` (${colors.greenBright(`+${group.additions}`)} ${colors.yellow(`-${group.deletions}`)})`);
-      lines.push(`📁 ${colors.bold(group.path)}${fileStats}`);
+      lines.push(`  📁 ${colors.bold(group.path)}${fileStats}`);
       
       lines.push(separator);
       lines.push('');
@@ -829,7 +836,7 @@ export function formatPlainOutput(options: FormatPlainOutputOptions): string {
   // Footer with same style as header
   const footerSeparator = '═'.repeat(getTerminalWidth());
   lines.push(colors.dim(footerSeparator));
-  lines.push(`📊 ${colors.bold(`Summary: ${processedThreads.length} threads, ${nitpicksCount} nitpicks, ${unresolvedCount} unresolved`)}`);
+  lines.push(`  📊 ${colors.bold(`Summary: ${processedThreads.length} threads, ${nitpicksCount} nitpicks, ${unresolvedCount} unresolved`)}`);
   lines.push(colors.dim(footerSeparator));
 
   return lines.join('\n');
