@@ -722,8 +722,8 @@ export function formatPlainOutput(options: FormatPlainOutputOptions): string {
     }
   });
 
-  // Check if there are unprocessed threads to show
-  if (processedThreads.length === 0) {
+  // Check if there are unprocessed threads or nitpicks to show
+  if (processedThreads.length === 0 && allNitpicks.length === 0) {
     // Case 1: No threads found at all
     if (allThreads.length === 0) {
       lines.push('ℹ️  No threads found in this PR');
