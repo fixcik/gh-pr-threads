@@ -198,7 +198,7 @@ async function main() {
     for (const t of threadsToProcess as Thread[]) {
       // Skip filters if targeting specific thread
       if (!targetThreadId) {
-        if (!showAll && t.isResolved) {
+        if (!showAll && !withResolved && t.isResolved) {
           skipped++;
           continue;
         }
