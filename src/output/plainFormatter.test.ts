@@ -3,7 +3,7 @@ import type { ReactionGroup } from '../types.js';
 import { formatReactionGroups } from './plainFormatter.js';
 
 describe('plainFormatter reactions', () => {
-  it('should format reaction groups with emoji', () => {
+  it('should format reaction groups with emoji and up to 3 users', () => {
     const groups: ReactionGroup[] = [
       {
         content: 'THUMBS_UP',
@@ -31,8 +31,10 @@ describe('plainFormatter reactions', () => {
 
     const result = formatReactionGroups(groups, true);
 
-    expect(result).toContain('👍 (3): @user1, @user2, @user3');
-    expect(result).toContain('❤️ (1): @user4');
+    expect(result).toContain('👍 @user1, @user2, @user3');
+    expect(result).toContain('❤️ @user4');
+    expect(result).not.toContain('(3)');
+    expect(result).not.toContain('(1)');
   });
 
   it('should format reaction groups without emoji', () => {
@@ -50,8 +52,37 @@ describe('plainFormatter reactions', () => {
 
     const result = formatReactionGroups(groups, false);
 
-    expect(result).toContain('THUMBS_UP (2): @user1, @user2');
+    expect(result).toContain('THUMBS_UP @user1, @user2');
     expect(result).not.toContain('👍');
+    expect(result).not.toContain('(2)');
+  });
+
+  it('should show "and N more" for more than 3 users', () => {
+    const groups: ReactionGroup[] = [
+      {
+        content: 'ROCKET',
+        createdAt: '2026-02-05T10:00:00Z',
+        viewerHasReacted: false,
+        reactors: {
+          totalCount: 7,
+          nodes: [
+            { login: 'user1' },
+            { login: 'user2' },
+            { login: 'user3' },
+            { login: 'user4' },
+            { login: 'user5' },
+            { login: 'user6' },
+            { login: 'user7' }
+          ]
+        }
+      }
+    ];
+
+    const result = formatReactionGroups(groups, true);
+
+    expect(result).toContain('🚀 @user1, @user2, @user3 and 4 more');
+    expect(result).not.toContain('@user4');
+    expect(result).not.toContain('@user5');
   });
 
   it('should return empty string for empty reaction groups', () => {
