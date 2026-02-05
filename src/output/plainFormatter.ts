@@ -1,7 +1,8 @@
-import type { ProcessedThread, BotSummary, Nitpick, Thread } from '../types.js';
+import type { ProcessedThread, BotSummary, Nitpick, Thread, ReactionGroup } from '../types.js';
 import { shortId } from '../utils/shortId.js';
 import { highlight } from 'cli-highlight';
 import { loadState } from '../state/manager.js';
+import { formatReaction, supportsEmoji } from '../utils/reactions.js';
 
 const useColors = process.stdout.isTTY;
 const terminalWidth = process.stdout.columns || 120;
@@ -17,6 +18,23 @@ const colors = {
   underline: (s: string) => useColors ? `\u001b[4m${s}\u001b[0m` : s,
   reset: '\u001b[0m'
 };
+
+/**
+ * Format reaction groups for plain text output
+ */
+export function formatReactionGroups(groups: ReactionGroup[], useEmoji: boolean): string {
+  if (!groups || groups.length === 0) {
+    return '';
+  }
+
+  return groups
+    .map(group => {
+      const icon = formatReaction(group.content, useEmoji);
+      const users = group.reactors.nodes.map(r => `@${r.login}`).join(', ');
+      return `  ${icon} (${group.reactors.totalCount}): ${users}`;
+    })
+    .join('\n');
+}
 
 /**
  * Generates a consistent color for a username based on hash
@@ -472,6 +490,7 @@ function wrapInQuote(lines: string[], indent: string, colorFn: (s: string) => st
 
 function formatThread(thread: ProcessedThread, indent: string, prAuthor: string, filePath: string): string {
   const lines: string[] = [];
+  const useEmoji = supportsEmoji();
 
   // Thread header with ID and location
   const threadId = shortId(thread.thread_id);
@@ -510,6 +529,13 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
     const { lines: bodyLines } = formatCommentBody(comment.body, commentIndent, filePath);
     const quotedLines = wrapInQuote(bodyLines, commentIndent, userColor);
     lines.push(...quotedLines);
+
+    // Add reactions if present
+    if (comment.reactionGroups && comment.reactionGroups.length > 0) {
+      const reactionText = formatReactionGroups(comment.reactionGroups, useEmoji);
+      lines.push('');
+      lines.push(reactionText);
+    }
 
     if (i < thread.comments.length - 1) {
       lines.push('');
