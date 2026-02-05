@@ -1,6 +1,7 @@
 import type { ProcessedThread, BotSummary, Nitpick, Thread } from '../types.js';
 import { shortId } from '../utils/shortId.js';
 import { highlight } from 'cli-highlight';
+import { loadState } from '../state/manager.js';
 
 const useColors = process.stdout.isTTY;
 const terminalWidth = process.stdout.columns || 120;
@@ -621,40 +622,79 @@ export function formatPlainOutput(options: FormatPlainOutputOptions): string {
     }
   });
 
-  // Group by file
-  const fileGroups = groupByFile(
-    filter('threads') ? processedThreads : [],
-    filter('nitpicks') ? allNitpicks : []
-  );
+  // Check if there are unprocessed threads to show
+  if (processedThreads.length === 0) {
+    // Case 1: No threads found at all
+    if (allThreads.length === 0) {
+      lines.push('ℹ️  No threads found in this PR');
+      lines.push('');
+    } else {
+      // Case 2: Threads exist but all processed
+      const state = loadState(options.statePath);
 
-  // Output each file group
-  fileGroups.forEach((group, idx) => {
-    if (idx > 0) lines.push('');
+      let resolvedCount = 0;
+      let skippedCount = 0;
+      const authorStats = new Map<string, number>();
 
-    // Calculate length: emoji (2) + space (1) + path length, minimum 40
-    const fileNameLength = Math.max(40, 3 + group.path.length);
-    const separator = '─'.repeat(Math.min(fileNameLength, terminalWidth));
-    lines.push(separator);
-    lines.push(`📁 ${colors.bold(group.path)}`);
-    lines.push(separator);
-    lines.push('');
+      allThreads.forEach((thread) => {
+        // Count status
+        const threadState = state.threads[thread.id];
+        if (threadState?.status === 'done') resolvedCount++;
+        if (threadState?.status === 'skip') skippedCount++;
 
-    group.items.forEach((item, itemIdx) => {
-      if (itemIdx > 0) {
-        lines.push('');
-        // Item separator: indent (2) + dots, minimum 38
-        const itemSeparatorLength = Math.max(38, Math.min(fileNameLength - 2, terminalWidth - 2));
-        lines.push(colors.dim('  ' + '·'.repeat(itemSeparatorLength)));
-        lines.push('');
-      }
+        // Count by author (first comment in thread)
+        const author = thread.comments.nodes[0]?.author?.login || 'unknown';
+        authorStats.set(author, (authorStats.get(author) || 0) + 1);
+      });
 
-      if (item.type === 'thread') {
-        lines.push(formatThread(item.data as ProcessedThread, '  ', prMeta.author, group.path));
-      } else if (item.type === 'nitpick') {
-        lines.push(formatNitpick(item.data as Nitpick, '  ', group.path));
-      }
+      // Format output
+      lines.push('✓ No unresolved threads to review');
+      lines.push('');
+      lines.push(`Total: ${allThreads.length} threads (${resolvedCount} resolved, ${skippedCount} skipped)`);
+
+      // Sort authors by count (descending)
+      const sortedAuthors = Array.from(authorStats.entries()).sort((a, b) => b[1] - a[1]);
+
+      const authorLine = sortedAuthors.map(([author, count]) => `${author} (${count})`).join(', ');
+      lines.push(`By author: ${authorLine}`);
+      lines.push('');
+    }
+  } else {
+    // Group by file
+    const fileGroups = groupByFile(
+      filter('threads') ? processedThreads : [],
+      filter('nitpicks') ? allNitpicks : []
+    );
+
+    // Output each file group
+    fileGroups.forEach((group, idx) => {
+      if (idx > 0) lines.push('');
+
+      // Calculate length: emoji (2) + space (1) + path length, minimum 40
+      const fileNameLength = Math.max(40, 3 + group.path.length);
+      const separator = '─'.repeat(Math.min(fileNameLength, terminalWidth));
+      lines.push(separator);
+      lines.push(`📁 ${colors.bold(group.path)}`);
+      lines.push(separator);
+      lines.push('');
+
+      group.items.forEach((item, itemIdx) => {
+        if (itemIdx > 0) {
+          lines.push('');
+          // Item separator: indent (2) + dots, minimum 38
+          const itemSeparatorLength = Math.max(38, Math.min(fileNameLength - 2, terminalWidth - 2));
+          lines.push(colors.dim('  ' + '·'.repeat(itemSeparatorLength)));
+          lines.push('');
+        }
+
+        if (item.type === 'thread') {
+          lines.push(formatThread(item.data as ProcessedThread, '  ', prMeta.author, group.path));
+        } else if (item.type === 'nitpick') {
+          lines.push(formatNitpick(item.data as Nitpick, '  ', group.path));
+        }
+      });
     });
-  });
+  }
 
   // Summary
   lines.push('');
