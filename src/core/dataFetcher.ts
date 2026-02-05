@@ -1,6 +1,8 @@
 import Debug from 'debug';
 import { fetchAllPages } from '../github/fetcher.js';
-import { THREADS_QUERY, FILES_QUERY, REVIEWS_QUERY, COMMENTS_QUERY } from '../github/queries.js';
+import { THREADS_QUERY, FILES_QUERY, REVIEWS_QUERY, COMMENTS_QUERY, META_QUERY } from '../github/queries.js';
+import { runGh } from '../github/client.js';
+import type { PRMetaData } from '../github/apiTypes.js';
 import type { Thread } from '../types.js';
 
 export interface PRFile {
@@ -25,6 +27,16 @@ export interface PRComment {
   createdAt: string;
 }
 
+export interface PRMetadata {
+  number: number;
+  title: string;
+  state: string;
+  isDraft: boolean;
+  mergeable: string;
+  author: string;
+  files: PRFile[];
+}
+
 const debugTiming = Debug('gh-pr-threads:timing');
 
 export interface FetchPRDataOptions {
@@ -40,25 +52,29 @@ export interface ProcessedPRData {
   files: PRFile[];
   reviews: PRReview[];
   comments: PRComment[];
+  metadata: PRMetadata;
 }
 
 /**
  * Fetches all PR data in parallel: threads, files, reviews, and comments
  */
 export async function fetchPRData(options: FetchPRDataOptions): Promise<ProcessedPRData> {
-  const { owner, repo, number, targetThreadId, shouldFetchFiles } = options;
+  const { owner, repo, number, targetThreadId } = options;
   const parallelStartTime = Date.now();
 
-  const [threads, files, reviews, comments] = await Promise.all([
+  const [threads, files, reviews, comments, metadataWithoutFiles] = await Promise.all([
     fetchThreads(owner, repo, number),
-    fetchFiles(owner, repo, number, targetThreadId, shouldFetchFiles),
+    fetchFiles(options),
     fetchReviews(owner, repo, number, targetThreadId),
-    fetchComments(owner, repo, number, targetThreadId)
+    fetchComments(owner, repo, number, targetThreadId),
+    fetchMetadata(owner, repo, number)
   ]);
 
   debugTiming(`All parallel fetches completed in ${Date.now() - parallelStartTime}ms`);
 
-  return { threads, files, reviews, comments };
+  const metadata: PRMetadata = { ...metadataWithoutFiles, files };
+
+  return { threads, files, reviews, comments, metadata };
 }
 
 async function fetchThreads(owner: string, repo: string, number: number): Promise<Thread[]> {
@@ -75,13 +91,9 @@ async function fetchThreads(owner: string, repo: string, number: number): Promis
   return threads;
 }
 
-async function fetchFiles(
-  owner: string,
-  repo: string,
-  number: number,
-  targetThreadId: string | null,
-  shouldFetchFiles: boolean
-): Promise<PRFile[]> {
+async function fetchFiles(options: FetchPRDataOptions): Promise<PRFile[]> {
+  const { owner, repo, number, targetThreadId, shouldFetchFiles } = options;
+  
   // Skip files when targeting specific thread or when not requested
   if (targetThreadId || !shouldFetchFiles) {
     return [];
@@ -146,4 +158,31 @@ async function fetchComments(
   });
   debugTiming(`Comments fetched: ${comments.length} comments in ${Date.now() - startTime}ms`);
   return comments;
+}
+
+async function fetchMetadata(
+  owner: string,
+  repo: string,
+  number: number
+): Promise<Omit<PRMetadata, 'files'>> {
+  const startTime = Date.now();
+  const metaResult = runGh<PRMetaData>([
+    'api',
+    'graphql',
+    `-F owner="${owner}"`,
+    `-F repo="${repo}"`,
+    `-F number=${number}`,
+    `-f query='${META_QUERY}'`
+  ]);
+  debugTiming(`PR metadata fetched in ${Date.now() - startTime}ms`);
+
+  const pr = metaResult.data.repository.pullRequest;
+  return {
+    number: pr.number,
+    title: pr.title,
+    state: pr.state,
+    isDraft: pr.isDraft,
+    mergeable: pr.mergeable,
+    author: pr.author.login
+  };
 }

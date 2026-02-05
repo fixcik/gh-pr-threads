@@ -88,6 +88,7 @@ export interface PRMetaData {
         mergeable: string;
         author: {
           login: string;
+          __typename?: string;
         };
       };
     };

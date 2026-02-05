@@ -51,9 +51,9 @@ describe('formatOutput', () => {
 
   it('should calculate summary statistics correctly', () => {
     const allThreads = [
-      { isResolved: false },
-      { isResolved: true },
-      { isResolved: false }
+      { id: 't1', isResolved: false, isOutdated: false, path: 'file.ts', line: 1, comments: { totalCount: 0, pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] } },
+      { id: 't2', isResolved: true, isOutdated: false, path: 'file.ts', line: 2, comments: { totalCount: 0, pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] } },
+      { id: 't3', isResolved: false, isOutdated: false, path: 'file.ts', line: 3, comments: { totalCount: 0, pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] } }
     ];
 
     const processedThreads = [mockThread];

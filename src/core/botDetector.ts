@@ -9,6 +9,11 @@ export function isBot(author: { login: string; __typename?: string }): boolean {
     return true;
   }
 
-  // 2. Check against known bot usernames
+  // 2. If login contains [bot], it's definitely a bot
+  if (author.login?.includes('[bot]')) {
+    return true;
+  }
+
+  // 3. Check against known bot usernames
   return author.login ? DEFAULT_BOT_USERNAMES.includes(author.login.toLowerCase()) : false;
 }

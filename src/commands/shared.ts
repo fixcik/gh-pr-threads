@@ -5,12 +5,6 @@ import { getStatePath, loadState, saveState, markItem, clearMark, resolveId } fr
 import { detectPR } from '../utils/pr.js';
 import type { State } from '../types.js';
 
-export interface CommandContext {
-  state: State;
-  statePath: string;
-  fullId: string;
-}
-
 export interface BatchCommandContext {
   state: State;
   statePath: string;
@@ -21,47 +15,6 @@ export interface BatchCommandContext {
 export interface BatchResult {
   successful: string[];
   failed: Array<{ id: string; error: string }>;
-}
-
-/**
- * Prepares command context by loading state and resolving the short ID
- */
-export function prepareCommandContext(shortId: string): CommandContext {
-  const pr = detectPR();
-  const statePath = getStatePath(pr.owner, pr.repo, pr.number);
-  const state = loadState(statePath);
-
-  const fullId = resolveId(state, shortId);
-
-  if (!fullId) {
-    console.error(`❌ ID '${shortId}' not found in state. Run gh-pr-threads first to fetch threads.`);
-    process.exit(1);
-  }
-
-  return { state, statePath, fullId };
-}
-
-/**
- * Validates that the ID is a thread (not a nitpick)
- */
-export function ensureIsThread(shortId: string, fullId: string): void {
-  if (!fullId.startsWith('PRRT_')) {
-    console.error(`❌ Cannot perform this operation on nitpick '${shortId}'. Only review threads are supported.`);
-    process.exit(1);
-  }
-}
-
-/**
- * Marks an item and saves state
- */
-export function markAndSave(
-  context: CommandContext,
-  status: 'done' | 'skip' | 'later'
-): void {
-  markItem(context.state, context.fullId, status);
-  console.log(`📌 Marked as ${status}`);
-  saveState(context.statePath, context.state);
-  console.log(`💾 State saved`);
 }
 
 /**
@@ -174,6 +127,56 @@ export function clearBatchAndSave(
 /**
  * Reports batch operation results to console
  */
+/**
+ * Validates batch command context and exits if all IDs are invalid
+ */
+export function validateBatchContext(context: BatchCommandContext): void {
+  if (context.resolvedIds.size === 0) {
+    console.error(`❌ None of the provided IDs were found in state. Run gh-pr-threads first to fetch threads.`);
+    for (const id of context.invalidIds) {
+      console.error(`   - ${id}: Not found`);
+    }
+    process.exit(1);
+  }
+}
+
+/**
+ * Validates that context contains only threads and exits if no threads found
+ */
+export function validateThreadsOnly(
+  threads: Map<string, string>,
+  nonThreads: string[]
+): void {
+  if (threads.size === 0) {
+    console.error(`❌ None of the provided IDs are review threads. This command only works with threads.`);
+    for (const id of nonThreads) {
+      console.error(`   - ${id}: Is a nitpick, not a thread`);
+    }
+    process.exit(1);
+  }
+}
+
+/**
+ * Marks successful items and saves state
+ */
+export function markSuccessfulItems(
+  context: BatchCommandContext,
+  threads: Map<string, string>,
+  successfulIds: string[],
+  markAs: 'done' | 'skip' | 'later'
+): void {
+  if (successfulIds.length === 0) return;
+
+  for (const shortId of successfulIds) {
+    const fullId = threads.get(shortId);
+    if (fullId) {
+      markItem(context.state, fullId, markAs);
+    }
+  }
+  saveState(context.statePath, context.state);
+  console.log(`📌 Marked ${successfulIds.length} item(s) as ${markAs}`);
+}
+
 export function reportBatchResults(
   result: BatchResult,
   operation: string,
