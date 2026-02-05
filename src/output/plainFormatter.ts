@@ -22,7 +22,7 @@ const colors = {
 /**
  * Format reaction groups for plain text output
  */
-export function formatReactionGroups(groups: ReactionGroup[], useEmoji: boolean): string {
+export function formatReactionGroups(groups: ReactionGroup[], useEmoji: boolean, indent: string = '  '): string {
   if (!groups || groups.length === 0) {
     return '';
   }
@@ -44,7 +44,7 @@ export function formatReactionGroups(groups: ReactionGroup[], useEmoji: boolean)
       const usersList = displayedUsers.map(r => `@${r.login}`).join(', ');
       const remaining = remainingCount > 0 ? ` and ${remainingCount} more` : '';
 
-      return `  ${icon} ${usersList}${remaining}`;
+      return `${indent}│  ${icon} ${usersList}${remaining}`;
     })
     .join('\n');
 }
@@ -528,15 +528,6 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
     // Replies get additional indent for visual nesting (4 spaces to align with main content)
     const commentIndent = i === 0 ? indent : `${indent}    `;
 
-    // Add reactions if present - show them BEFORE author line
-    if (comment.reactionGroups && comment.reactionGroups.length > 0) {
-      const reactionText = formatReactionGroups(comment.reactionGroups, useEmoji);
-      if (reactionText) {
-        lines.push(reactionText);
-        lines.push('');
-      }
-    }
-
     if (i === 0) {
       // First comment - show full author name with user-specific color
       const authorLine = `${indent}${userColor(comment.author)}:`;
@@ -551,6 +542,18 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
     const { lines: bodyLines } = formatCommentBody(comment.body, commentIndent, filePath);
     const quotedLines = wrapInQuote(bodyLines, commentIndent, userColor);
     lines.push(...quotedLines);
+
+    // Add reactions if present - inside quote, after body
+    if (comment.reactionGroups && comment.reactionGroups.length > 0) {
+      const reactionText = formatReactionGroups(comment.reactionGroups, useEmoji, commentIndent);
+      if (reactionText) {
+        // Add separator line before reactions
+        lines.push(`${commentIndent}│`);
+        lines.push(`${commentIndent}│  ---`);
+        lines.push(`${commentIndent}│`);
+        lines.push(reactionText);
+      }
+    }
 
     if (i < thread.comments.length - 1) {
       lines.push('');
