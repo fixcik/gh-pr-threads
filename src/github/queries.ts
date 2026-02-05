@@ -8,7 +8,23 @@ export const THREADS_QUERY = `
             id isResolved isOutdated path line
             comments(first: 50) {
               pageInfo { hasNextPage endCursor }
-              nodes { id body author { login __typename } url createdAt path line }
+              nodes {
+                id body author { login __typename } url createdAt path line
+                reactionGroups {
+                  content
+                  createdAt
+                  viewerHasReacted
+                  reactors(first: 100) {
+                    totalCount
+                    nodes {
+                      ... on User { login }
+                      ... on Bot { login }
+                      ... on Organization { login }
+                      ... on Mannequin { login }
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -78,7 +94,23 @@ export const THREAD_COMMENTS_QUERY = `
         reviewThread(id: $threadId) {
           comments(first: 100, after: $after) {
             pageInfo { hasNextPage endCursor }
-            nodes { id body author { login __typename } url createdAt path line }
+            nodes {
+              id body author { login __typename } url createdAt path line
+              reactionGroups {
+                content
+                createdAt
+                viewerHasReacted
+                reactors(first: 100) {
+                  totalCount
+                  nodes {
+                    ... on User { login }
+                    ... on Bot { login }
+                    ... on Organization { login }
+                    ... on Mannequin { login }
+                  }
+                }
+              }
+            }
           }
         }
       }
