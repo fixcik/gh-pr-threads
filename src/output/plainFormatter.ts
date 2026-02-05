@@ -1,4 +1,4 @@
-import type { ProcessedThread, BotSummary, Nitpick } from '../types.js';
+import type { ProcessedThread, BotSummary, Nitpick, Thread } from '../types.js';
 import { shortId } from '../utils/shortId.js';
 import { highlight } from 'cli-highlight';
 
@@ -260,6 +260,38 @@ function formatSuggestionBlock(code: string, restText: string, indent: string, l
 /**
  * Formats main content (handles diff blocks, code blocks, or plain markdown)
  */
+/**
+ * Highlights code and wraps it in a gray quote bar
+ */
+function highlightAndWrapCode(code: string, language: string, indent: string): string[] {
+  const lines: string[] = [];
+  const codeLines: string[] = [];
+  
+  // Apply syntax highlighting
+  try {
+    const highlighted = useColors
+      ? highlight(code, { language, ignoreIllegals: true })
+      : code;
+    highlighted.split('\n').forEach(line => {
+      codeLines.push(`${indent}      ${line}`);
+    });
+  } catch {
+    code.split('\n').forEach(line => {
+      codeLines.push(`${indent}      ${colors.dim(line)}`);
+    });
+  }
+
+  // Wrap code block in gray quote bar
+  const bar = colors.dim('│');
+  codeLines.forEach(line => {
+    const content = line.replace(new RegExp(`^${indent}      `), '');
+    // Trim trailing spaces from code lines
+    lines.push(`${indent}    ${bar}  ${content}`.trimEnd());
+  });
+  
+  return lines;
+}
+
 function formatMainContent(text: string, indent: string): string[] {
   // Check for diff blocks first
   const diffMatch = text.match(/```diff\n([\s\S]*?)```/);
@@ -292,29 +324,7 @@ function formatMainContent(text: string, indent: string): string[] {
       lines.push('');
     }
 
-    // Apply syntax highlighting with quote bar
-    const codeLines: string[] = [];
-    try {
-      const highlighted = useColors
-        ? highlight(code, { language, ignoreIllegals: true })
-        : code;
-      highlighted.split('\n').forEach(line => {
-        codeLines.push(`${indent}      ${line}`);
-      });
-    } catch {
-      code.split('\n').forEach(line => {
-        codeLines.push(`${indent}      ${colors.dim(line)}`);
-      });
-    }
-
-    // Wrap code block in gray quote bar
-    const bar = colors.dim('│');
-    codeLines.forEach(line => {
-      const content = line.replace(new RegExp(`^${indent}      `), '');
-      // Trim trailing spaces from code lines
-      lines.push(`${indent}    ${bar}  ${content}`.trimEnd());
-    });
-
+    lines.push(...highlightAndWrapCode(code, language, indent));
     return lines;
   }
 
@@ -339,6 +349,83 @@ function formatMainContent(text: string, indent: string): string[] {
  * - Outputs <details> blocks as quote with bold header
  * - Wraps long lines according to terminal width
  */
+/**
+ * Formats a diff block inside a details section
+ */
+function formatDetailDiffBlock(code: string, restText: string, indent: string): string[] {
+  const lines: string[] = [];
+  
+  if (restText) {
+    const formatted = formatMarkdown(restText);
+    lines.push(...wrapText(formatted, `${indent}    `, terminalWidth, true));
+    lines.push('');
+  }
+
+  // Diff (no wrapping)
+  formatDiffBlock(code, indent).forEach(line => {
+    lines.push(line);
+  });
+  
+  return lines;
+}
+
+/**
+ * Formats a code block inside a details section
+ */
+function formatDetailCodeBlock(language: string, code: string, restText: string, indent: string): string[] {
+  const lines: string[] = [];
+  
+  if (restText) {
+    const formatted = formatMarkdown(restText);
+    lines.push(...wrapText(formatted, `${indent}    `, terminalWidth, true));
+    lines.push('');
+  }
+
+  lines.push(...highlightAndWrapCode(code, language, indent));
+  
+  return lines;
+}
+
+/**
+ * Formats a single details block
+ */
+function formatDetailBlock(detail: { summary: string; content: string }, indent: string): string[] {
+  const lines: string[] = [];
+  
+  lines.push('');
+  lines.push('');
+
+  // Summary as bold header with indent (with wrapping)
+  const summaryFormatted = colors.bold(detail.summary);
+  lines.push(...wrapText(summaryFormatted, `${indent}    `, terminalWidth, true));
+  lines.push('');
+
+  // Check for diff in details
+  const diffMatch = detail.content.match(/```diff\n([\s\S]*?)```/);
+  if (diffMatch) {
+    const code = diffMatch[1];
+    const restText = detail.content.replace(/```diff\n[\s\S]*?```/, '').trim();
+    lines.push(...formatDetailDiffBlock(code, restText, indent));
+    return lines;
+  }
+
+  // Check for regular code blocks with ```language
+  const codeBlockMatch = detail.content.match(/```([a-z]*)\n([\s\S]*?)\n```/);
+  if (codeBlockMatch) {
+    const language = codeBlockMatch[1] || 'text';
+    const code = codeBlockMatch[2];
+    const restText = detail.content.replace(/```[a-z]*\n[\s\S]*?\n```/, '').trim();
+    lines.push(...formatDetailCodeBlock(language, code, restText, indent));
+    return lines;
+  }
+
+  // Plain text with wrapping
+  const formatted = formatMarkdown(detail.content);
+  lines.push(...wrapText(formatted, `${indent}    `, terminalWidth, true));
+  
+  return lines;
+}
+
 function formatCommentBody(body: string, indent: string, filePath?: string): { lines: string[]; hasSuggestion: boolean } {
   const lines: string[] = [];
   
@@ -361,74 +448,7 @@ function formatCommentBody(body: string, indent: string, filePath?: string): { l
 
   // Output <details> blocks (without quote bars - will be added by formatThread)
   details.forEach(detail => {
-    lines.push('');
-    lines.push('');
-
-    // Summary as bold header with indent (with wrapping)
-    const summaryFormatted = colors.bold(detail.summary);
-    lines.push(...wrapText(summaryFormatted, `${indent}    `, terminalWidth, true));
-    lines.push('');
-
-    // Check for diff in details
-    const diffMatch = detail.content.match(/```diff\n([\s\S]*?)```/);
-
-    if (diffMatch) {
-      const code = diffMatch[1];
-      const restText = detail.content.replace(/```diff\n[\s\S]*?```/, '').trim();
-
-      if (restText) {
-        const formatted = formatMarkdown(restText);
-        lines.push(...wrapText(formatted, `${indent}    `, terminalWidth, true));
-        lines.push('');
-      }
-
-      // Diff (no wrapping)
-      formatDiffBlock(code, indent).forEach(line => {
-        lines.push(line);
-      });
-    } else {
-      // Check for regular code blocks with ```language
-      const codeBlockMatch = detail.content.match(/```([a-z]*)\n([\s\S]*?)\n```/);
-      
-      if (codeBlockMatch) {
-        const language = codeBlockMatch[1] || 'text';
-        const code = codeBlockMatch[2];
-        const restText = detail.content.replace(/```[a-z]*\n[\s\S]*?\n```/, '').trim();
-
-        if (restText) {
-          const formatted = formatMarkdown(restText);
-          lines.push(...wrapText(formatted, `${indent}    `, terminalWidth, true));
-          lines.push('');
-        }
-
-        // Apply syntax highlighting with quote bar
-        const codeLines: string[] = [];
-        try {
-          const highlighted = useColors
-            ? highlight(code, { language, ignoreIllegals: true })
-            : code;
-          highlighted.split('\n').forEach(line => {
-            codeLines.push(`${indent}      ${line}`);
-          });
-        } catch {
-          code.split('\n').forEach(line => {
-            codeLines.push(`${indent}      ${colors.dim(line)}`);
-          });
-        }
-
-        // Wrap code block in gray quote bar
-        const bar = colors.dim('│');
-        codeLines.forEach(line => {
-          const content = line.replace(new RegExp(`^${indent}      `), '');
-          // Trim trailing spaces from code lines
-          lines.push(`${indent}    ${bar}  ${content}`.trimEnd());
-        });
-      } else {
-        // Plain text with wrapping
-        const formatted = formatMarkdown(detail.content);
-        lines.push(...wrapText(formatted, `${indent}    `, terminalWidth, true));
-      }
-    }
+    lines.push(...formatDetailBlock(detail, indent));
   });
 
   return { lines, hasSuggestion };
@@ -579,7 +599,7 @@ export interface FormatPlainOutputOptions {
   statePath: string;
   processedThreads: ProcessedThread[];
   botSummaries: BotSummary[];
-  allThreads: Array<{ isResolved: boolean }>;
+  allThreads: Thread[];
   filter: (key: string) => boolean;
 }
 

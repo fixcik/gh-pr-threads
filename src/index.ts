@@ -2,8 +2,6 @@
 
 import Debug from 'debug';
 import { parseCliArgs } from './cli.js';
-import { runGh } from './github/client.js';
-import { META_QUERY } from './github/queries.js';
 import { getStatePath, loadState, registerIds, saveState } from './state/manager.js';
 import { formatOutput } from './output/formatter.js';
 import { formatPlainOutput } from './output/plainFormatter.js';
@@ -13,8 +11,7 @@ import { filterThreadById } from './core/threadFilter.js';
 import { fetchPRData } from './core/dataFetcher.js';
 import { processThreads } from './core/threadProcessor.js';
 import { processBotSummaries } from './core/botProcessor.js';
-import type { PRMetaData } from './github/apiTypes.js';
-import type { ProcessedThread, BotSummary } from './types.js';
+import type { ProcessedThread, BotSummary, Thread } from './types.js';
 
 const debug = Debug('gh-pr-threads');
 const debugTiming = Debug('gh-pr-threads:timing');
@@ -33,7 +30,7 @@ interface OutputOptions {
   statePath: string;
   processedThreads: ProcessedThread[];
   botSummaries: BotSummary[];
-  allThreads: Array<{ isResolved: boolean }>;
+  allThreads: Thread[];
   filter: (key: string) => boolean;
 }
 
@@ -83,22 +80,6 @@ async function main() {
 
   debug(`Filtered to ${threadsToProcess.length} threads from ${prData.threads.length} total`);
 
-  // Fetch PR metadata
-  debug('Fetching PR metadata...');
-  const metaFetchStartTime = Date.now();
-  const metaResult = runGh<PRMetaData>([
-    'api',
-    'graphql',
-    `-F owner="${owner}"`,
-    `-F repo="${repo}"`,
-    `-F number=${number}`,
-    `-f query='${META_QUERY}'`
-  ]);
-  debugTiming(`PR metadata fetched in ${Date.now() - metaFetchStartTime}ms`);
-
-  const pr = metaResult.data.repository.pullRequest;
-  const prMeta = { ...pr, author: pr.author.login, files: prData.files };
-
   // Process threads
   debug('Processing review threads...');
   const { processedThreads } = await processThreads({
@@ -137,11 +118,11 @@ async function main() {
   // Output results in selected format
   outputResults({
     format,
-    prMeta,
+    prMeta: prData.metadata,
     statePath,
     processedThreads,
     botSummaries,
-    allThreads: prData.threads as Array<{ isResolved: boolean }>,
+    allThreads: prData.threads,
     filter
   });
 }

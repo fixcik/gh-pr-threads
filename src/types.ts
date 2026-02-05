@@ -32,67 +32,6 @@ export interface Thread {
   };
 }
 
-export interface PRDataResponse {
-  repository: {
-    pullRequest: {
-      number: number;
-      title: string;
-      state: string;
-      author: { login: string };
-      isDraft: boolean;
-      mergeable: string;
-      reviewThreads: {
-        totalCount: number;
-        pageInfo: {
-          hasNextPage: boolean;
-          endCursor: string | null;
-        };
-        nodes: Thread[];
-      };
-      files: {
-        totalCount: number;
-        pageInfo: {
-          hasNextPage: boolean;
-          endCursor: string | null;
-        };
-        nodes: Array<{
-          path: string;
-          additions: number;
-          deletions: number;
-          changeType: string;
-        }>;
-      };
-      reviews: {
-        totalCount: number;
-        pageInfo: {
-          hasNextPage: boolean;
-          endCursor: string | null;
-        };
-        nodes: Array<{
-          author: { login: string; __typename?: string };
-          body: string;
-          url: string;
-          state: string;
-        }>;
-      };
-      comments: {
-        totalCount: number;
-        pageInfo: {
-          hasNextPage: boolean;
-          endCursor: string | null;
-        };
-        nodes: Array<{
-          id: string;
-          body: string;
-          author: { login: string; __typename?: string };
-          url: string;
-          createdAt: string;
-        }>;
-      };
-    };
-  };
-}
-
 export interface Args {
   owner: string;
   repo: string;

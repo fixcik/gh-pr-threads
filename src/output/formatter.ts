@@ -1,4 +1,4 @@
-import type { Output, ProcessedThread, BotSummary } from '../types.js';
+import type { Output, ProcessedThread, BotSummary, Thread } from '../types.js';
 
 export interface PRMeta {
   number: number;
@@ -15,7 +15,7 @@ export interface FormatOutputOptions {
   statePath: string;
   processedThreads: ProcessedThread[];
   botSummaries: BotSummary[];
-  allThreads: Array<{ isResolved: boolean }>;
+  allThreads: Thread[];
   filter: (key: string) => boolean;
 }
 

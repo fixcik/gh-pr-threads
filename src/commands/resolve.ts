@@ -1,11 +1,13 @@
 import { runGhMutation } from '../github/client.js';
 import { REPLY_MUTATION, RESOLVE_MUTATION } from '../github/mutations.js';
 import type { AddReplyMutationData, ResolveMutationData } from '../github/apiTypes.js';
-import { saveState, markItem } from '../state/manager.js';
 import {
   prepareBatchCommandContext,
   filterThreadsOnly,
   reportBatchResults,
+  validateBatchContext,
+  validateThreadsOnly,
+  markSuccessfulItems,
   type BatchResult
 } from './shared.js';
 
@@ -16,25 +18,12 @@ export async function runResolveCommand(
 ): Promise<void> {
   const context = prepareBatchCommandContext(ids);
 
-  // Check if all IDs are invalid
-  if (context.resolvedIds.size === 0) {
-    console.error(`❌ None of the provided IDs were found in state. Run gh-pr-threads first to fetch threads.`);
-    for (const id of context.invalidIds) {
-      console.error(`   - ${id}: Not found`);
-    }
-    process.exit(1);
-  }
+  // Validate IDs
+  validateBatchContext(context);
 
   // Filter to threads only
   const { threads, nonThreads } = filterThreadsOnly(context);
-
-  if (threads.size === 0) {
-    console.error(`❌ None of the provided IDs are review threads. Resolve only works with threads.`);
-    for (const id of nonThreads) {
-      console.error(`   - ${id}: Is a nitpick, not a thread`);
-    }
-    process.exit(1);
-  }
+  validateThreadsOnly(threads, nonThreads);
 
   const result: BatchResult = { successful: [], failed: [] };
 
@@ -77,15 +66,8 @@ export async function runResolveCommand(
   }
 
   // Optionally mark successful items
-  if (markAs && result.successful.length > 0) {
-    for (const shortId of result.successful) {
-      const fullId = threads.get(shortId);
-      if (fullId) {
-        markItem(context.state, fullId, markAs);
-      }
-    }
-    saveState(context.statePath, context.state);
-    console.log(`📌 Marked ${result.successful.length} item(s) as ${markAs}`);
+  if (markAs) {
+    markSuccessfulItems(context, threads, result.successful, markAs);
   }
 
   const allSucceeded = reportBatchResults(result, 'Resolve', context.invalidIds, nonThreads);
