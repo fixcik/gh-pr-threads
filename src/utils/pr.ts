@@ -15,12 +15,19 @@ export function parsePRInfo(url?: string, options?: { owner?: string; repo?: str
   let number = options?.number || 0;
 
   // Parse URL if provided
-  if (url && url.startsWith('https://github.com/')) {
+  if (url) {
+    if (!url.startsWith('https://github.com/')) {
+      throw new Error('Invalid PR URL. Expected a GitHub pull request URL.');
+    }
     const parts = url.replace('https://github.com/', '').split('/');
     owner = parts[0];
     repo = parts[1];
-    if (parts[2] === 'pull') {
-      number = parseInt(parts[3], 10);
+    if (parts[2] !== 'pull' || !parts[3]) {
+      throw new Error('Invalid PR URL. Expected a GitHub pull request URL.');
+    }
+    number = Number.parseInt(parts[3], 10);
+    if (!owner || !repo || Number.isNaN(number)) {
+      throw new Error('Invalid PR URL. Expected a GitHub pull request URL.');
     }
   }
 

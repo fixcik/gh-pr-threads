@@ -11,7 +11,7 @@ import { getStatePath, loadState, registerIds, saveState } from './state/manager
 import { formatOutput } from './output/formatter.js';
 import { formatPlainOutput } from './output/plainFormatter.js';
 import { setImageStoragePath } from './utils/images.js';
-import type { ProcessedThread, BotSummary, Nitpick, Thread } from './types.js';
+import type { ProcessedThread, BotSummary, Nitpick, Thread, ThreadComment } from './types.js';
 import type { PRMetaData, Author } from './github/apiTypes.js';
 
 const debug = Debug('gh-pr-threads');
@@ -59,6 +59,7 @@ async function main() {
     if (!resolved) {
       console.error(`Error: Thread '${threadId}' not found in PR ${owner}/${repo}#${number}`);
       console.error(`State file: ${statePath}`);
+      console.error(`Hint: Run without --thread first to populate thread IDs.`);
       process.exit(1);
     }
     targetThreadId = resolved;
@@ -73,12 +74,12 @@ async function main() {
     // 1. Fetch review threads
     (async () => {
       const t1 = Date.now();
-      const threads = await fetchAllPages({
+      const threads = await fetchAllPages<Thread>({
         owner,
         repo,
         number,
         queryPattern: THREADS_QUERY,
-        getNodes: pr => pr.reviewThreads?.nodes || [],
+        getNodes: pr => (pr.reviewThreads?.nodes as Thread[]) || [],
         getPageInfo: pr => pr.reviewThreads?.pageInfo || { hasNextPage: false, endCursor: null }
       });
       debugTiming(`Threads fetched: ${threads.length} threads in ${Date.now() - t1}ms`);
@@ -160,14 +161,14 @@ async function main() {
   t1 = Date.now();
   const processedThreads: ProcessedThread[] = [];
   // Cache to avoid fetching same thread comments twice
-  const threadCommentsCache = new Map<string, unknown>();
+  const threadCommentsCache = new Map<string, ThreadComment[]>();
 
   if (filter('threads') || targetThreadId) {
     // If targetThreadId is set, filter to only that thread
     let threadsToProcess: Thread[];
     if (targetThreadId) {
       const target = targetThreadId;
-      threadsToProcess = (allThreads as Thread[]).filter(t => {
+      threadsToProcess = allThreads.filter(t => {
         // Support both GraphQL ID format (PRRT_xxx) and old path:line format
         if (t.id === target) {
           debug(`Thread matched by GraphQL ID: ${t.id}`);
@@ -188,7 +189,7 @@ async function main() {
         return false;
       });
     } else {
-      threadsToProcess = allThreads as Thread[];
+      threadsToProcess = allThreads;
     }
 
     debug(`Filtered to ${threadsToProcess.length} threads from ${allThreads.length} total`);
@@ -238,7 +239,7 @@ async function main() {
   if (!targetThreadId && !ignoreBots && (filter('summaries') || filter('nitpicks'))) {
     const candidates = [...allComments, ...allReviews].filter((c): c is { author: Author; body: string; url: string } => {
       const comment = c as { author?: Author; body?: string; url?: string };
-      return !!comment.author && isBot(comment.author);
+      return !!comment.author && !!comment.body && !!comment.url && isBot(comment.author);
     });
     debug(`Found ${candidates.length} bot comments`);
 

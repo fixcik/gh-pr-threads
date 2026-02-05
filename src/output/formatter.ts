@@ -1,7 +1,17 @@
 import type { Output, ProcessedThread, BotSummary } from '../types.js';
 
+export interface PRMeta {
+  number: number;
+  title: string;
+  state: string;
+  author: string;
+  files: unknown[];
+  isDraft: boolean;
+  mergeable: string;
+}
+
 export interface FormatOutputOptions {
-  prMeta: { number: number; title: string; state: string; author: string; files: unknown[]; isDraft: boolean; mergeable: string };
+  prMeta: PRMeta;
   statePath: string;
   processedThreads: ProcessedThread[];
   botSummaries: BotSummary[];

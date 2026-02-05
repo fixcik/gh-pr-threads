@@ -63,7 +63,7 @@ export const META_QUERY = `
         number
         title
         state
-        author { login }
+        author { login __typename }
         isDraft
         mergeable
       }
