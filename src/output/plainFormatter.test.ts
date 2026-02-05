@@ -31,8 +31,8 @@ describe('plainFormatter reactions', () => {
 
     const result = formatReactionGroups(groups, true);
 
-    expect(result).toContain('👍 @user1, @user2, @user3');
-    expect(result).toContain('❤️ @user4');
+    expect(result).toContain('│  👍 @user1, @user2, @user3');
+    expect(result).toContain('│  ❤️ @user4');
     expect(result).not.toContain('(3)');
     expect(result).not.toContain('(1)');
   });
@@ -52,7 +52,7 @@ describe('plainFormatter reactions', () => {
 
     const result = formatReactionGroups(groups, false);
 
-    expect(result).toContain('THUMBS_UP @user1, @user2');
+    expect(result).toContain('│  THUMBS_UP @user1, @user2');
     expect(result).not.toContain('👍');
     expect(result).not.toContain('(2)');
   });
@@ -80,7 +80,7 @@ describe('plainFormatter reactions', () => {
 
     const result = formatReactionGroups(groups, true);
 
-    expect(result).toContain('🚀 @user1, @user2, @user3 and 4 more');
+    expect(result).toContain('│  🚀 @user1, @user2, @user3 and 4 more');
     expect(result).not.toContain('@user4');
     expect(result).not.toContain('@user5');
   });
@@ -123,7 +123,7 @@ describe('plainFormatter reactions', () => {
 
     const result = formatReactionGroups(groups, true);
 
-    expect(result).toContain('❤️ @user1, @user2');
+    expect(result).toContain('│  ❤️ @user1, @user2');
     expect(result).not.toContain('👍');
     expect(result).not.toContain('🚀');
   });
