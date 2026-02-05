@@ -14,7 +14,7 @@ export const THREADS_QUERY = `
                   content
                   createdAt
                   viewerHasReacted
-                  reactors(first: 100) {
+                  reactors(first: 10) {
                     totalCount
                     nodes {
                       ... on User { login }
@@ -100,7 +100,7 @@ export const THREAD_COMMENTS_QUERY = `
                 content
                 createdAt
                 viewerHasReacted
-                reactors(first: 100) {
+                reactors(first: 10) {
                   totalCount
                   nodes {
                     ... on User { login }
