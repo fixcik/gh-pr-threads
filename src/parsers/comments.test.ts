@@ -33,6 +33,27 @@ AI prompt to remove
     expect(result).not.toContain('AI prompt to remove');
   });
 
+  it('should remove Learnings used details', () => {
+    const body = `
+Content
+<details><summary>🧠 Learnings used</summary>
+Learnt from: CR
+Repo: fixcik/gh-pr-threads PR: 0
+File: CLAUDE.md:0-0
+Timestamp: 2026-02-05T15:29:38.773Z
+Learning: Applies to CLAUDE.md : Document architecture decisions
+</details>
+More content
+    `.trim();
+
+    const result = cleanCommentBody(body);
+
+    expect(result).not.toContain('Learnings used');
+    expect(result).not.toContain('Learnt from');
+    expect(result).toContain('Content');
+    expect(result).toContain('More content');
+  });
+
   it('should remove internal state comments', () => {
     const body = `
 Before

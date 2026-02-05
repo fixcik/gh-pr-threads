@@ -44,7 +44,7 @@ export function formatReactionGroups(groups: ReactionGroup[], useEmoji: boolean,
       const usersList = displayedUsers.map(r => `@${r.login}`).join(', ');
       const remaining = remainingCount > 0 ? ` and ${remainingCount} more` : '';
 
-      return `${indent}│  ${icon} ${usersList}${remaining}`;
+      return `${icon} ${usersList}${remaining}`;
     })
     .join('\n');
 }
@@ -540,20 +540,25 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
     }
 
     const { lines: bodyLines } = formatCommentBody(comment.body, commentIndent, filePath);
-    const quotedLines = wrapInQuote(bodyLines, commentIndent, userColor);
-    lines.push(...quotedLines);
-
-    // Add reactions if present - inside quote, after body
+    
+    // Add reactions if present - add to bodyLines before wrapping in quote
     if (comment.reactionGroups && comment.reactionGroups.length > 0) {
-      const reactionText = formatReactionGroups(comment.reactionGroups, useEmoji, commentIndent);
-      if (reactionText) {
-        // Add separator line before reactions
-        lines.push(`${commentIndent}│`);
-        lines.push(`${commentIndent}│  ---`);
-        lines.push(`${commentIndent}│`);
-        lines.push(reactionText);
+      const reactionLines = formatReactionGroups(comment.reactionGroups, useEmoji, commentIndent);
+      if (reactionLines) {
+        bodyLines.push('');
+        bodyLines.push('---');
+        bodyLines.push('');
+        // Split reaction lines and add each one
+        reactionLines.split('\n').forEach(line => {
+          // Remove the indent and pipe that formatReactionGroups adds
+          const cleanLine = line.replace(/^.*?│\s\s/, '');
+          bodyLines.push(cleanLine);
+        });
       }
     }
+    
+    const quotedLines = wrapInQuote(bodyLines, commentIndent, userColor);
+    lines.push(...quotedLines);
 
     if (i < thread.comments.length - 1) {
       lines.push('');
