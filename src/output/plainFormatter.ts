@@ -92,10 +92,12 @@ function stripAnsi(str: string): string {
 /**
  * Wraps text according to terminal width and indentation
  */
-function wrapText(text: string, indent: string, maxWidth: number = terminalWidth): string[] {
+function wrapText(text: string, indent: string, maxWidth: number = terminalWidth, reserveForQuote: boolean = false): string[] {
   const lines: string[] = [];
   const indentLength = stripAnsi(indent).length;
-  const availableWidth = maxWidth - indentLength;
+  // Reserve 1 extra char if text will be wrapped in quote bar later
+  // because quote bar "  │  " (5 chars) is longer than "    " (4 chars) indent
+  const availableWidth = maxWidth - indentLength - (reserveForQuote ? 1 : 0);
 
   // Split into paragraphs (empty line = new paragraph)
   const paragraphs = text.split(/\n\n+/);
@@ -176,7 +178,8 @@ function formatDiffBlock(code: string, indent: string): string[] {
       // Context - normal
       coloredLine = colors.dim(line);
     }
-    lines.push(`${indent}    ${bar}  ${coloredLine}`);
+    // Trim trailing spaces from code lines
+    lines.push(`${indent}    ${bar}  ${coloredLine}`.trimEnd());
   });
 
   return lines;
@@ -227,18 +230,20 @@ function formatSuggestionBlock(code: string, restText: string, indent: string, l
       ? highlight(cleanCode, { language, ignoreIllegals: true })
       : cleanCode;
     highlighted.split('\n').forEach(line => {
-      lines.push(`${indent}    ${bar}  ${colors.green('+ ')}${line}`);
+      // Trim trailing spaces from code lines
+      lines.push(`${indent}    ${bar}  ${colors.green('+ ')}${line}`.trimEnd());
     });
   } catch {
     cleanCode.split('\n').forEach(line => {
-      lines.push(`${indent}    ${bar}  ${colors.green('+ ')}${colors.dim(line)}`);
+      // Trim trailing spaces from code lines
+      lines.push(`${indent}    ${bar}  ${colors.green('+ ')}${colors.dim(line)}`.trimEnd());
     });
   }
 
   if (restText) {
     lines.push(`${indent}    ${bar}`);
     const formatted = formatMarkdown(restText);
-    const textLines = wrapText(formatted, `${indent}    `);
+    const textLines = wrapText(formatted, `${indent}    `, terminalWidth, true);
     // Wrap rest text in quote bar too
     textLines.forEach(line => {
       const content = line.replace(new RegExp(`^${indent}    `), '');
@@ -265,7 +270,7 @@ function formatMainContent(text: string, indent: string): string[] {
 
     if (restText) {
       const formatted = formatMarkdown(restText);
-      lines.push(...wrapText(formatted, `${indent}    `));
+      lines.push(...wrapText(formatted, `${indent}    `, terminalWidth, true));
       lines.push('');
     }
 
@@ -283,7 +288,7 @@ function formatMainContent(text: string, indent: string): string[] {
 
     if (restText) {
       const formatted = formatMarkdown(restText);
-      lines.push(...wrapText(formatted, `${indent}    `));
+      lines.push(...wrapText(formatted, `${indent}    `, terminalWidth, true));
       lines.push('');
     }
 
@@ -306,7 +311,8 @@ function formatMainContent(text: string, indent: string): string[] {
     const bar = colors.dim('│');
     codeLines.forEach(line => {
       const content = line.replace(new RegExp(`^${indent}      `), '');
-      lines.push(`${indent}    ${bar}  ${content}`);
+      // Trim trailing spaces from code lines
+      lines.push(`${indent}    ${bar}  ${content}`.trimEnd());
     });
 
     return lines;
@@ -314,7 +320,7 @@ function formatMainContent(text: string, indent: string): string[] {
 
   // Plain markdown
   const formatted = formatMarkdown(text);
-  return wrapText(formatted, `${indent}    `);
+  return wrapText(formatted, `${indent}    `, terminalWidth, true);
 }
 
 /**
@@ -360,7 +366,7 @@ function formatCommentBody(body: string, indent: string, filePath?: string): { l
 
     // Summary as bold header with indent (with wrapping)
     const summaryFormatted = colors.bold(detail.summary);
-    lines.push(...wrapText(summaryFormatted, `${indent}    `));
+    lines.push(...wrapText(summaryFormatted, `${indent}    `, terminalWidth, true));
     lines.push('');
 
     // Check for diff in details
@@ -372,7 +378,7 @@ function formatCommentBody(body: string, indent: string, filePath?: string): { l
 
       if (restText) {
         const formatted = formatMarkdown(restText);
-        lines.push(...wrapText(formatted, `${indent}    `));
+        lines.push(...wrapText(formatted, `${indent}    `, terminalWidth, true));
         lines.push('');
       }
 
@@ -391,7 +397,7 @@ function formatCommentBody(body: string, indent: string, filePath?: string): { l
 
         if (restText) {
           const formatted = formatMarkdown(restText);
-          lines.push(...wrapText(formatted, `${indent}    `));
+          lines.push(...wrapText(formatted, `${indent}    `, terminalWidth, true));
           lines.push('');
         }
 
@@ -414,12 +420,13 @@ function formatCommentBody(body: string, indent: string, filePath?: string): { l
         const bar = colors.dim('│');
         codeLines.forEach(line => {
           const content = line.replace(new RegExp(`^${indent}      `), '');
-          lines.push(`${indent}    ${bar}  ${content}`);
+          // Trim trailing spaces from code lines
+          lines.push(`${indent}    ${bar}  ${content}`.trimEnd());
         });
       } else {
         // Plain text with wrapping
         const formatted = formatMarkdown(detail.content);
-        lines.push(...wrapText(formatted, `${indent}    `));
+        lines.push(...wrapText(formatted, `${indent}    `, terminalWidth, true));
       }
     }
   });
@@ -433,12 +440,12 @@ function formatCommentBody(body: string, indent: string, filePath?: string): { l
 function wrapInQuote(lines: string[], indent: string, colorFn: (s: string) => string): string[] {
   const bar = colorFn('│');
   return lines.map(line => {
-    // If line is empty or just whitespace, show just the bar
+    // If line is empty or just whitespace, show just the bar (no trailing spaces)
     if (!line.trim()) {
-      return `${indent}  ${bar}`;
+      return `${indent}  ${bar}`.trimEnd();
     }
-    // Otherwise add bar with double space before content
-    return `${indent}  ${bar}  ${line.replace(new RegExp(`^${indent}    `), '')}`;
+    // Otherwise add bar with double space before content (trim trailing spaces)
+    return `${indent}  ${bar}  ${line.replace(new RegExp(`^${indent}    `), '')}`.trimEnd();
   });
 }
 
