@@ -26,3 +26,16 @@ export const RESOLVE_MUTATION = `
   }
 `;
 
+export const ADD_REACTION_MUTATION = `
+  mutation AddReaction($subjectId: ID!, $content: ReactionContent!) {
+    addReaction(input: { subjectId: $subjectId, content: $content }) {
+      reaction {
+        id
+        content
+      }
+      subject {
+        id
+      }
+    }
+  }
+`;
