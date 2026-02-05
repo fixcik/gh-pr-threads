@@ -19,6 +19,24 @@ import type { ProcessedThread, BotSummary } from './types.js';
 const debug = Debug('gh-pr-threads');
 const debugTiming = Debug('gh-pr-threads:timing');
 
+interface OutputOptions {
+  format: string;
+  prMeta: {
+    number: number;
+    title: string;
+    state: string;
+    author: string;
+    files: unknown[];
+    isDraft: boolean;
+    mergeable: string;
+  };
+  statePath: string;
+  processedThreads: ProcessedThread[];
+  botSummaries: BotSummary[];
+  allThreads: Array<{ isResolved: boolean }>;
+  filter: (key: string) => boolean;
+}
+
 async function main() {
   const startTime = Date.now();
   const { owner, repo, number, showAll, only, includeDone, withResolved, format, ignoreBots, threadId } = parseCliArgs();
@@ -127,24 +145,6 @@ function createFilterFunction(only: string[]): (key: string) => boolean {
     if (key === 'userComments') return false;
     return only.length === 0 || only.includes(key);
   };
-}
-
-interface OutputOptions {
-  format: string;
-  prMeta: {
-    number: number;
-    title: string;
-    state: string;
-    author: string;
-    files: unknown[];
-    isDraft: boolean;
-    mergeable: string;
-  };
-  statePath: string;
-  processedThreads: ProcessedThread[];
-  botSummaries: BotSummary[];
-  allThreads: Array<{ isResolved: boolean }>;
-  filter: (key: string) => boolean;
 }
 
 /**
