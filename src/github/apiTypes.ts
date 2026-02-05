@@ -76,6 +76,18 @@ export interface ResolveMutationData {
   };
 }
 
+export interface AddReactionMutationData {
+  addReaction: {
+    reaction: {
+      id: string;
+      content: string;
+    };
+    subject: {
+      id: string;
+    };
+  };
+}
+
 // Meta query response (wrapped in data)
 export interface PRMetaData {
   data: {
