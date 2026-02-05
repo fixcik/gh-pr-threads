@@ -39,8 +39,18 @@ interface OutputOptions {
 
 async function main() {
   const startTime = Date.now();
-  const { owner, repo, number, showAll, only, includeDone, withResolved, format, ignoreBots, threadId } = parseCliArgs();
-  
+  const args = parseCliArgs();
+
+  // parseCliArgs() calls program.parse() which handles subcommands.
+  // Subcommands call process.exit(), so if we reach here, it's the default fetch command.
+  // However, if parseCliArgs returns an empty object (for subcommands), we should not continue.
+  if (!args.owner || !args.repo || !args.number) {
+    // Subcommand was executed, nothing more to do
+    return;
+  }
+
+  const { owner, repo, number, showAll, only, includeDone, withResolved, format, ignoreBots, threadId } = args;
+
   debug(`Fetching PR ${owner}/${repo}#${number}`);
   debug(`Options: showAll=${showAll}, includeDone=${includeDone}, withResolved=${withResolved}, ignoreBots=${ignoreBots}, only=${only ? only.join(',') : 'all'}, format=${format}, threadId=${threadId || 'none'}`);
 
@@ -176,13 +186,7 @@ function outputResults(options: OutputOptions): void {
   }
 }
 
-// Only run main() if this is not a subcommand
-const subcommands = ['mark', 'reply', 'resolve', 'clear'];
-const isSubcommand = process.argv[2] && subcommands.includes(process.argv[2]);
-
-if (!isSubcommand) {
-  main().catch(err => {
-    console.error(err);
-    process.exit(1);
-  });
-}
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
