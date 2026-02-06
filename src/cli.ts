@@ -13,12 +13,21 @@ type MarkStatusType = typeof MARK_STATUSES[number];
 
 const SUBCOMMANDS = ['mark', 'reply', 'resolve', 'react', 'clear'] as const;
 
+function parsePRNumber(value: string): number {
+  const n = parseInt(value, 10);
+  if (Number.isNaN(n) || n <= 0) {
+    console.error(`Error: Invalid PR number '${value}'. Must be a positive integer.`);
+    process.exit(1);
+  }
+  return n;
+}
+
 function addPROptions(cmd: Command): Command {
   return cmd
     .option('--pr <url>', 'PR URL (auto-detects from current repo if omitted)')
     .option('--owner <owner>', 'Repository owner')
     .option('--repo <repo>', 'Repository name')
-    .option('--number <number>', 'PR number', parseInt);
+    .option('--number <number>', 'PR number', parsePRNumber);
 }
 
 function validateMarkStatus(status: string | undefined): asserts status is MarkStatusType | undefined {
