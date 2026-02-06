@@ -595,13 +595,20 @@ function wrapInQuote(lines: string[], indent: string, colorFn: (s: string) => st
 /**
  * Formats author name with @ prefix and role badges
  */
-function formatAuthor(author: string, prAuthor: string): string {
+function formatAuthor(author: string, prAuthor: string, prOwner: string, isBot: boolean): string {
   const isAuthor = author === prAuthor;
-  const badges = isAuthor ? ' (author)' : '';
-  return `@${author}${badges}`;
+  const isOwner = author === prOwner;
+  
+  const badges: string[] = [];
+  if (isAuthor) badges.push('author');
+  if (isOwner) badges.push('owner');
+  if (isBot) badges.push('bot');
+  
+  const badgeStr = badges.length > 0 ? ` (${badges.join(', ')})` : '';
+  return `@${author}${badgeStr}`;
 }
 
-function formatThread(thread: ProcessedThread, indent: string, prAuthor: string, filePath: string): string {
+function formatThread(thread: ProcessedThread, indent: string, prAuthor: string, prOwner: string, filePath: string): string {
   const lines: string[] = [];
   const useEmoji = supportsEmoji();
 
@@ -640,7 +647,7 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
     const commentIndent = i === 0 ? indent : `${indent}    `;
 
     // Format author with @ and badges
-    const authorDisplay = formatAuthor(comment.author, prAuthor);
+    const authorDisplay = formatAuthor(comment.author, prAuthor, prOwner, comment.isBot);
 
     if (i === 0) {
       // First comment - show author with user-specific color
@@ -684,7 +691,7 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
   return lines.join('\n');
 }
 
-function formatNitpick(nitpick: Nitpick, indent: string, filePath: string): string {
+function formatNitpick(nitpick: Nitpick, indent: string, prAuthor: string, prOwner: string, filePath: string): string {
   const lines: string[] = [];
 
   // Nitpick header with ID and location
@@ -702,7 +709,8 @@ function formatNitpick(nitpick: Nitpick, indent: string, filePath: string): stri
 
   const author = 'coderabbitai';
   const userColor = getUserColor(author);
-  lines.push(`${indent}${userColor(`@${author}`)} ${colors.dim('[nitpick]')}:`);
+  const authorDisplay = formatAuthor(author, prAuthor, prOwner, true); // true = bot
+  lines.push(`${indent}${userColor(authorDisplay)} ${colors.dim('[nitpick]')}:`);
 
   const { lines: bodyLines } = formatCommentBody(nitpick.content, indent, filePath);
   const quotedLines = wrapInQuote(bodyLines, indent, userColor);
@@ -876,9 +884,9 @@ export function formatPlainOutput(options: FormatPlainOutputOptions): string {
         }
 
         if (item.type === 'thread') {
-          lines.push(formatThread(item.data as ProcessedThread, '  ', prMeta.author, group.path));
+          lines.push(formatThread(item.data as ProcessedThread, '  ', prMeta.author, prMeta.owner, group.path));
         } else if (item.type === 'nitpick') {
-          lines.push(formatNitpick(item.data as Nitpick, '  ', group.path));
+          lines.push(formatNitpick(item.data as Nitpick, '  ', prMeta.author, prMeta.owner, group.path));
         }
       });
     });

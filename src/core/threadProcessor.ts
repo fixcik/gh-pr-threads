@@ -58,6 +58,7 @@ export async function processThreads(options: ProcessThreadsOptions): Promise<Pr
       comments: comments.map(c => ({
         id: c.id,
         author: c.author.login,
+        isBot: c.author.__typename === 'Bot',
         body: cleanCommentBody(c.body),
         url: c.url,
         createdAt: c.createdAt,

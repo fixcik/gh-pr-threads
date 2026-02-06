@@ -9,6 +9,24 @@ import {
   type BatchResult
 } from './shared.js';
 
+function handleReactionError(error: unknown, shortId: string, result: BatchResult): void {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+
+  if (errorMessage.includes('already reacted')) {
+    result.failed.push({
+      id: shortId,
+      error: 'You have already reacted with this emoji'
+    });
+  } else if (errorMessage.includes('Not Found')) {
+    result.failed.push({
+      id: shortId,
+      error: 'Comment not found or you don\'t have access'
+    });
+  } else {
+    result.failed.push({ id: shortId, error: errorMessage });
+  }
+}
+
 export function runReactCommand(
   ids: string[],
   reaction: string
@@ -41,22 +59,7 @@ export function runReactCommand(
         console.log(`   Reaction ID: ${reactionId}`);
       }
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      // Provide friendly error messages
-      if (errorMessage.includes('already reacted')) {
-        result.failed.push({
-          id: shortId,
-          error: 'You have already reacted with this emoji'
-        });
-      } else if (errorMessage.includes('Not Found')) {
-        result.failed.push({
-          id: shortId,
-          error: 'Comment not found or you don\'t have access'
-        });
-      } else {
-        result.failed.push({ id: shortId, error: errorMessage });
-      }
+      handleReactionError(error, shortId, result);
     }
   }
 
