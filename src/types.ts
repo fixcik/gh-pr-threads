@@ -21,6 +21,7 @@ export interface CursorCache {
 
 export interface State {
   pr: string;
+  owner?: string;  // cached owner for displaying badges
   updatedAt: string;
   threads: Record<string, { status: string; note?: string }>;
   nitpicks: Record<string, { status: string; note?: string }>;
@@ -104,6 +105,7 @@ export interface ProcessedThread {
   comments: Array<{
     id: string;
     author: string;
+    isBot: boolean;
     body: string;
     url: string;
     createdAt: string;

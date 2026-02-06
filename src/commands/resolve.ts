@@ -2,11 +2,8 @@ import { runGhMutation } from '../github/client.js';
 import { REPLY_MUTATION, RESOLVE_MUTATION } from '../github/mutations.js';
 import type { AddReplyMutationData, ResolveMutationData } from '../github/apiTypes.js';
 import {
-  prepareBatchCommandContext,
-  filterThreadsOnly,
+  prepareThreadCommandContext,
   reportBatchResults,
-  validateBatchContext,
-  validateThreadsOnly,
   markSuccessfulItems,
   type BatchResult
 } from './shared.js';
@@ -16,14 +13,7 @@ export function runResolveCommand(
   reply?: string,
   markAs?: 'done' | 'skip' | 'later'
 ): void {
-  const context = prepareBatchCommandContext(ids);
-
-  // Validate IDs
-  validateBatchContext(context);
-
-  // Filter to threads only
-  const { threads, nonThreads } = filterThreadsOnly(context);
-  validateThreadsOnly(threads, nonThreads);
+  const { context, threads, nonThreads } = prepareThreadCommandContext(ids);
 
   const result: BatchResult = { successful: [], failed: [] };
 

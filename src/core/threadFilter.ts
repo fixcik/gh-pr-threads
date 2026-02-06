@@ -6,6 +6,40 @@ const debug = Debug('gh-pr-threads');
 /**
  * Filters threads by target thread ID (GraphQL ID or path:line format)
  */
+interface PathLineMatch {
+  path: string;
+  startLine: number;
+  endLine?: number;
+}
+
+function parsePathLineId(targetThreadId: string): PathLineMatch | null {
+  const lastColonIdx = targetThreadId.lastIndexOf(':');
+  const path = targetThreadId.slice(0, lastColonIdx);
+  const lineRange = targetThreadId.slice(lastColonIdx + 1);
+  const [startRaw, endRaw] = lineRange.split('-');
+  const startLine = Number(startRaw);
+  const endLine = endRaw !== undefined && endRaw !== '' ? Number(endRaw) : undefined;
+
+  if (Number.isNaN(startLine) || (endRaw !== undefined && (endRaw === '' || Number.isNaN(endLine)))) {
+    debug(`Invalid line number in targetThreadId: ${targetThreadId}`);
+    return null;
+  }
+
+  return { path, startLine, endLine };
+}
+
+function matchesPathLine(thread: Thread, match: PathLineMatch): boolean {
+  if (thread.path !== match.path) {
+    return false;
+  }
+
+  if (match.endLine !== undefined) {
+    return thread.line !== null && thread.line !== undefined && thread.line >= match.startLine && thread.line <= match.endLine;
+  }
+  
+  return thread.line === match.startLine;
+}
+
 export function filterThreadById(threads: Thread[], targetThreadId: string): Thread[] {
   return threads.filter(thread => {
     // Support both GraphQL ID format (PRRT_xxx) and old path:line format
@@ -16,38 +50,16 @@ export function filterThreadById(threads: Thread[], targetThreadId: string): Thr
 
     // Check if targetThreadId is in path:line format
     if (targetThreadId.includes(':') && targetThreadId.includes('/')) {
-      const lastColonIdx = targetThreadId.lastIndexOf(':');
-      const path = targetThreadId.slice(0, lastColonIdx);
-      const lineRange = targetThreadId.slice(lastColonIdx + 1);
-      const [startRaw, endRaw] = lineRange.split('-');
-      const startLine = Number(startRaw);
-      const endLine = endRaw !== undefined && endRaw !== '' ? Number(endRaw) : undefined;
-
-      if (Number.isNaN(startLine) || (endRaw !== undefined && (endRaw === '' || Number.isNaN(endLine)))) {
-        debug(`Invalid line number in targetThreadId: ${targetThreadId}`);
+      const match = parsePathLineId(targetThreadId);
+      if (!match) {
         return false;
       }
 
-      debug(`Checking thread: path=${thread.path}, line=${thread.line} against path=${path}, lineRange=${lineRange}`);
+      debug(`Checking thread: path=${thread.path}, line=${thread.line} against path=${match.path}, lineRange=${match.startLine}${match.endLine ? `-${match.endLine}` : ''}`);
 
-      // Check if path matches
-      if (thread.path !== path) {
-        return false;
-      }
-
-      // Check if thread line falls within the range or matches exactly
-      if (endLine !== undefined) {
-        // Range specified (e.g., "13-26")
-        if (thread.line && thread.line >= startLine && thread.line <= endLine) {
-          debug(`Thread matched by path:line range`);
-          return true;
-        }
-      } else {
-        // Single line specified (e.g., "13")
-        if (thread.line === startLine) {
-          debug(`Thread matched by path:line`);
-          return true;
-        }
+      if (matchesPathLine(thread, match)) {
+        debug(`Thread matched by path:line${match.endLine ? ' range' : ''}`);
+        return true;
       }
     }
 

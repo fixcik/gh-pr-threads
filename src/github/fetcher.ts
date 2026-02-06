@@ -228,10 +228,7 @@ export async function fetchAllPagesWithCache<T = unknown>(
   return fetchSequentially(fetchOptions);
 }
 
-export async function fetchAllPages<T = unknown>(options: FetchPagesOptions<T>): Promise<T[]> {
-  const result = await fetchAllPagesWithCache(options);
-  return result.nodes;
-}
+
 
 export async function fetchAllThreadComments(
   owner: string,

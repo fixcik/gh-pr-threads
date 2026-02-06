@@ -29,6 +29,7 @@ describe('formatter reactions', () => {
             id: 'comment1',
             body: 'Test comment',
             author: 'testuser',
+            isBot: false,
             url: 'https://github.com/test',
             createdAt: '2026-02-05T10:00:00Z',
             reactionGroups
@@ -75,6 +76,7 @@ describe('formatter reactions', () => {
             id: 'comment1',
             body: 'Test comment',
             author: 'testuser',
+            isBot: false,
             url: 'https://github.com/test',
             createdAt: '2026-02-05T10:00:00Z'
           }

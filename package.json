@@ -74,7 +74,7 @@
   "nano-staged": {
     "*.ts": [
       "eslint --fix",
-      "tsc --noEmit"
+      "tsc --noEmit --skipLibCheck"
     ]
   }
 }

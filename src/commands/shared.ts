@@ -153,6 +153,24 @@ export function validateThreadsOnly(
 }
 
 /**
+ * Prepares and validates thread-only context for commands
+ * Combines prepareBatchCommandContext, validateBatchContext, filterThreadsOnly, and validateThreadsOnly
+ */
+export function prepareThreadCommandContext(shortIds: string[]): {
+  context: BatchCommandContext;
+  threads: Map<string, string>;
+  nonThreads: string[];
+} {
+  const context = prepareBatchCommandContext(shortIds);
+  validateBatchContext(context);
+  
+  const { threads, nonThreads } = filterThreadsOnly(context);
+  validateThreadsOnly(threads, nonThreads);
+  
+  return { context, threads, nonThreads };
+}
+
+/**
  * Marks successful items and saves state
  */
 export function markSuccessfulItems(

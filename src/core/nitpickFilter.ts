@@ -6,6 +6,37 @@ const debug = Debug('gh-pr-threads');
 /**
  * Filters nitpicks by target ID (path:line or path:startLine-endLine format)
  */
+interface LineRange {
+  start: number;
+  end: number;
+}
+
+function parseLineRange(lineStr: string): LineRange | null {
+  const [start, end] = lineStr.split('-').map(Number);
+  if (Number.isNaN(start)) {
+    return null;
+  }
+  return { start, end: end || start };
+}
+
+function rangesOverlap(range1: LineRange, range2: LineRange): boolean {
+  return range1.start <= range2.end && range1.end >= range2.start;
+}
+
+function parsePathLineTarget(targetId: string): { path: string; lineRange: LineRange } | null {
+  const lastColonIdx = targetId.lastIndexOf(':');
+  const targetPath = targetId.slice(0, lastColonIdx);
+  const lineRangeStr = targetId.slice(lastColonIdx + 1);
+  
+  const lineRange = parseLineRange(lineRangeStr);
+  if (!lineRange) {
+    debug(`Invalid line number in targetId: ${targetId}`);
+    return null;
+  }
+  
+  return { path: targetPath, lineRange };
+}
+
 export function filterNitpicksById(nitpicks: Nitpick[], targetId: string): Nitpick[] {
   return nitpicks.filter(nitpick => {
     // Direct ID match
@@ -16,55 +47,29 @@ export function filterNitpicksById(nitpicks: Nitpick[], targetId: string): Nitpi
 
     // Check if targetId is in path:line format
     if (targetId.includes(':') && targetId.includes('/')) {
-      const lastColonIdx = targetId.lastIndexOf(':');
-      const targetPath = targetId.slice(0, lastColonIdx);
-      const lineRange = targetId.slice(lastColonIdx + 1);
-
-      // Parse line range (e.g., "13-26" or just "13")
-      const [startLine, endLine] = lineRange.split('-').map(Number);
-
-      if (Number.isNaN(startLine)) {
-        debug(`Invalid line number in targetId: ${targetId}`);
+      const target = parsePathLineTarget(targetId);
+      if (!target) {
         return false;
       }
 
-      // Parse nitpick line (may be a range like "13-26" or single line "13")
-      const nitpickLine = nitpick.line;
-      const [nitpickStart, nitpickEnd] = nitpickLine.split('-').map(Number);
-
-      if (Number.isNaN(nitpickStart)) {
-        debug(`Skipping nitpick with invalid line format: ${nitpickLine}`);
+      // Parse nitpick line range
+      const nitpickRange = parseLineRange(nitpick.line);
+      if (!nitpickRange) {
+        debug(`Skipping nitpick with invalid line format: ${nitpick.line}`);
         return false;
       }
 
-      debug(`Checking nitpick: path=${nitpick.path}, line=${nitpickLine} against path=${targetPath}, line=${lineRange}`);
+      debug(`Checking nitpick: path=${nitpick.path}, line=${nitpick.line} against path=${target.path}, line=${target.lineRange.start}${target.lineRange.end !== target.lineRange.start ? `-${target.lineRange.end}` : ''}`);
 
       // Check if paths match
-      if (nitpick.path !== targetPath) {
+      if (nitpick.path !== target.path) {
         return false;
       }
 
-      // Check if lines match or overlap
-      if (endLine) {
-        // Target is a range (e.g., "13-26")
-        // Match if nitpick range overlaps with target range
-        const nitpickEndResolved = nitpickEnd || nitpickStart;
-        const hasOverlap = nitpickStart <= endLine && nitpickEndResolved >= startLine;
-
-        if (hasOverlap) {
-          debug(`Nitpick matched by overlapping range`);
-          return true;
-        }
-      } else {
-        // Target is a single line (e.g., "13")
-        // Match if nitpick line equals target or nitpick range contains target
-        const nitpickEndResolved = nitpickEnd || nitpickStart;
-        const contains = startLine >= nitpickStart && startLine <= nitpickEndResolved;
-
-        if (contains) {
-          debug(`Nitpick matched by containing line`);
-          return true;
-        }
+      // Check if lines overlap
+      if (rangesOverlap(nitpickRange, target.lineRange)) {
+        debug(`Nitpick matched by overlapping range`);
+        return true;
       }
     }
 

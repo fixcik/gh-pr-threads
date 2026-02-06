@@ -27,6 +27,15 @@ export interface PRComment {
   createdAt: string;
 }
 
+interface FetchDataOptions {
+  owner: string;
+  repo: string;
+  number: number;
+  targetThreadId: string | null;
+  cachedCursors?: PaginationCache;
+  cacheTtl?: number;
+}
+
 export interface PRMetadata {
   number: number;
   title: string;
@@ -34,6 +43,7 @@ export interface PRMetadata {
   isDraft: boolean;
   mergeable: string;
   author: string;
+  owner: string;
   files: PRFile[];
   totalAdditions: number;
   totalDeletions: number;
@@ -70,8 +80,8 @@ export async function fetchPRData(options: FetchPRDataOptions): Promise<Processe
   const [threadsResult, filesResult, reviewsResult, commentsResult, metadataWithoutFiles] = await Promise.all([
     fetchThreads(owner, repo, number, cursorCache?.threads, cacheTtl),
     fetchFiles(options, cursorCache?.files, cacheTtl),
-    fetchReviews(owner, repo, number, targetThreadId, cursorCache?.reviews, cacheTtl),
-    fetchComments(owner, repo, number, targetThreadId, cursorCache?.comments, cacheTtl),
+    fetchReviews({ owner, repo, number, targetThreadId, cachedCursors: cursorCache?.reviews, cacheTtl }),
+    fetchComments({ owner, repo, number, targetThreadId, cachedCursors: cursorCache?.comments, cacheTtl }),
     fetchMetadata(owner, repo, number)
   ]);
 
@@ -171,79 +181,63 @@ async function fetchFiles(
   return result;
 }
 
-async function fetchReviews(
-  owner: string,
-  repo: string,
-  number: number,
-  targetThreadId: string | null,
-  cachedCursors?: PaginationCache,
-  cacheTtl?: number
-): Promise<FetchPagesResult<PRReview>> {
+function shouldSkipFetch(targetThreadId: string | null): boolean {
+  const isNitpickId = targetThreadId && targetThreadId.includes(':') && targetThreadId.includes('/');
+  return !!(targetThreadId && !isNitpickId);
+}
+
+function createEmptyResult<T>(cachedCursors?: PaginationCache): FetchPagesResult<T> {
+  return {
+    nodes: [],
+    cache: cachedCursors ?? {
+      pages: [],
+      lastPageHasMore: false,
+      totalItems: 0,
+      fetchedAt: new Date().toISOString()
+    },
+    hadNewData: false
+  };
+}
+
+async function fetchReviews(options: FetchDataOptions): Promise<FetchPagesResult<PRReview>> {
   // Skip reviews when targeting specific thread ID (GraphQL format)
   // But still fetch when targeting nitpick (path:line format)
-  const isNitpickId = targetThreadId && targetThreadId.includes(':') && targetThreadId.includes('/');
-  if (targetThreadId && !isNitpickId) {
-    return {
-      nodes: [],
-      cache: cachedCursors ?? {
-        pages: [],
-        lastPageHasMore: false,
-        totalItems: 0,
-        fetchedAt: new Date().toISOString()
-      },
-      hadNewData: false
-    };
+  if (shouldSkipFetch(options.targetThreadId)) {
+    return createEmptyResult(options.cachedCursors);
   }
 
   const startTime = Date.now();
   const result = await fetchAllPagesWithCache<PRReview>({
-    owner,
-    repo,
-    number,
+    owner: options.owner,
+    repo: options.repo,
+    number: options.number,
     queryPattern: REVIEWS_QUERY,
     getNodes: pr => (pr.reviews?.nodes as PRReview[]) || [],
     getPageInfo: pr => pr.reviews?.pageInfo || { hasNextPage: false, endCursor: null },
-    cachedCursors,
-    cacheTtl
+    cachedCursors: options.cachedCursors,
+    cacheTtl: options.cacheTtl
   });
   debugTiming(`Reviews fetched: ${result.nodes.length} reviews in ${Date.now() - startTime}ms`);
   return result;
 }
 
-async function fetchComments(
-  owner: string,
-  repo: string,
-  number: number,
-  targetThreadId: string | null,
-  cachedCursors?: PaginationCache,
-  cacheTtl?: number
-): Promise<FetchPagesResult<PRComment>> {
+async function fetchComments(options: FetchDataOptions): Promise<FetchPagesResult<PRComment>> {
   // Skip comments when targeting specific thread ID (GraphQL format)
   // But still fetch when targeting nitpick (path:line format)
-  const isNitpickId = targetThreadId && targetThreadId.includes(':') && targetThreadId.includes('/');
-  if (targetThreadId && !isNitpickId) {
-    return {
-      nodes: [],
-      cache: cachedCursors ?? {
-        pages: [],
-        lastPageHasMore: false,
-        totalItems: 0,
-        fetchedAt: new Date().toISOString()
-      },
-      hadNewData: false
-    };
+  if (shouldSkipFetch(options.targetThreadId)) {
+    return createEmptyResult(options.cachedCursors);
   }
 
   const startTime = Date.now();
   const result = await fetchAllPagesWithCache<PRComment>({
-    owner,
-    repo,
-    number,
+    owner: options.owner,
+    repo: options.repo,
+    number: options.number,
     queryPattern: COMMENTS_QUERY,
     getNodes: pr => (pr.comments?.nodes as PRComment[]) || [],
     getPageInfo: pr => pr.comments?.pageInfo || { hasNextPage: false, endCursor: null },
-    cachedCursors,
-    cacheTtl
+    cachedCursors: options.cachedCursors,
+    cacheTtl: options.cacheTtl
   });
   debugTiming(`Comments fetched: ${result.nodes.length} comments in ${Date.now() - startTime}ms`);
   return result;
@@ -273,6 +267,7 @@ async function fetchMetadata(
     isDraft: pr.isDraft,
     mergeable: pr.mergeable,
     author: pr.author?.login ?? 'unknown',
+    owner,
     totalAdditions: pr.additions,
     totalDeletions: pr.deletions
   };
