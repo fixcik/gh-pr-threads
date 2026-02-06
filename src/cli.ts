@@ -13,6 +13,14 @@ type MarkStatusType = typeof MARK_STATUSES[number];
 
 const SUBCOMMANDS = ['mark', 'reply', 'resolve', 'react', 'clear'] as const;
 
+function addPROptions(cmd: Command): Command {
+  return cmd
+    .option('--pr <url>', 'PR URL (auto-detects from current repo if omitted)')
+    .option('--owner <owner>', 'Repository owner')
+    .option('--repo <repo>', 'Repository name')
+    .option('--number <number>', 'PR number', parseInt);
+}
+
 function validateMarkStatus(status: string | undefined): asserts status is MarkStatusType | undefined {
   if (status !== undefined && !MARK_STATUSES.includes(status as MarkStatusType)) {
     console.error(`Error: Invalid mark status '${status}'. Must be one of: ${MARK_STATUSES.join(', ')}`);
@@ -87,33 +95,39 @@ export function parseCliArgs(): Args {
     });
 
   // Mark command
-  program
+  const markCmd = program
     .command('mark')
     .description('Mark thread/nitpick(s) as done, skip, later, or clear the mark')
     .argument('<status>', 'Status: done, skip, later, or clear')
     .argument('<ids...>', 'Thread or nitpick short ID(s) (6 characters each)')
-    .option('--note <text>', 'Optional note')
+    .option('--note <text>', 'Optional note');
+
+  addPROptions(markCmd)
     .action(async (status, ids, options) => {
       const validStatuses = ['done', 'skip', 'later', 'clear'];
       if (!validStatuses.includes(status)) {
         console.error(`Error: Invalid status '${status}'. Must be one of: ${validStatuses.join(', ')}`);
         process.exit(1);
       }
-      runMarkCommand(ids, status as MarkStatus, options.note);
+      const prOptions = { pr: options.pr, owner: options.owner, repo: options.repo, number: options.number };
+      runMarkCommand(ids, status as MarkStatus, options.note, prOptions);
       process.exit(0);
     });
 
   // Reply command
-  program
+  const replyCmd = program
     .command('reply')
     .description('Reply to review thread(s)')
     .argument('<message>', 'Reply message')
     .argument('<ids...>', 'Thread short ID(s) (6 characters each)')
-    .option('--mark <status>', 'Also mark as done/skip/later after replying')
+    .option('--mark <status>', 'Also mark as done/skip/later after replying');
+
+  addPROptions(replyCmd)
     .action((message, ids, options) => {
       try {
         validateMarkStatus(options.mark);
-        runReplyCommand(ids, message, options.mark);
+        const prOptions = { pr: options.pr, owner: options.owner, repo: options.repo, number: options.number };
+        runReplyCommand(ids, message, options.mark, prOptions);
         process.exit(0);
       } catch (error: unknown) {
         console.error(`❌ ${error instanceof Error ? error.message : String(error)}`);
@@ -122,16 +136,19 @@ export function parseCliArgs(): Args {
     });
 
   // Resolve command
-  program
+  const resolveCmd = program
     .command('resolve')
     .description('Resolve review thread(s) on GitHub')
     .argument('<ids...>', 'Thread short ID(s) (6 characters each)')
     .option('--reply <message>', 'Add reply before resolving')
-    .option('--mark <status>', 'Also mark as done/skip/later after resolving')
+    .option('--mark <status>', 'Also mark as done/skip/later after resolving');
+
+  addPROptions(resolveCmd)
     .action((ids, options) => {
       try {
         validateMarkStatus(options.mark);
-        runResolveCommand(ids, options.reply, options.mark);
+        const prOptions = { pr: options.pr, owner: options.owner, repo: options.repo, number: options.number };
+        runResolveCommand(ids, options.reply, options.mark, prOptions);
         process.exit(0);
       } catch (error: unknown) {
         console.error(`❌ ${error instanceof Error ? error.message : String(error)}`);
@@ -140,15 +157,18 @@ export function parseCliArgs(): Args {
     });
 
   // React command
-  program
+  const reactCmd = program
     .command('react')
     .description('Add reaction to comment(s)')
     .argument('<reaction>', 'Reaction type (THUMBS_UP, ❤️, etc.)')
-    .argument('<ids...>', 'Comment short ID(s) (6 characters each)')
-    .action(async (reaction: string, ids: string[]) => {
+    .argument('<ids...>', 'Comment short ID(s) (6 characters each)');
+
+  addPROptions(reactCmd)
+    .action(async (reaction: string, ids: string[], options: Record<string, unknown>) => {
       try {
         const { runReactCommand } = await import('./commands/react.js');
-        runReactCommand(ids, reaction);
+        const prOptions = { pr: options.pr as string, owner: options.owner as string, repo: options.repo as string, number: options.number as number };
+        runReactCommand(ids, reaction, prOptions);
         process.exit(0);
       } catch (error: unknown) {
         console.error(`❌ ${error instanceof Error ? error.message : String(error)}`);

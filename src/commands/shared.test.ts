@@ -21,7 +21,7 @@ describe('prepareBatchCommandContext', () => {
     process.env.HOME = '/home/testuser';
 
     // Mock PR detection
-    vi.mocked(prUtils.detectPR).mockReturnValue({
+    vi.mocked(prUtils.parsePRInfo).mockReturnValue({
       owner: 'testowner',
       repo: 'testrepo',
       number: 123
@@ -69,6 +69,77 @@ describe('prepareBatchCommandContext', () => {
 
     expect(context.resolvedIds.size).toBe(1);
     expect(context.invalidIds).toEqual(['inv456', 'xyz789']);
+  });
+
+  it('should use provided PR URL instead of auto-detection', () => {
+    const mockState = {
+      pr: 'test-pr',
+      updatedAt: '2024-01-01',
+      threads: {},
+      nitpicks: {},
+      idMap: { 'abc123': 'PRRT_thread1' }
+    };
+    vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(mockState));
+
+    vi.mocked(prUtils.parsePRInfo).mockReturnValue({
+      owner: 'url-owner',
+      repo: 'url-repo',
+      number: 999
+    });
+
+    const context = prepareBatchCommandContext(['abc123'], {
+      pr: 'https://github.com/url-owner/url-repo/pull/999'
+    });
+
+    expect(prUtils.parsePRInfo).toHaveBeenCalledWith(
+      'https://github.com/url-owner/url-repo/pull/999',
+      expect.objectContaining({ pr: 'https://github.com/url-owner/url-repo/pull/999' })
+    );
+    expect(context.statePath).toContain('url-owner-url-repo-999');
+  });
+
+  it('should use provided owner/repo/number options', () => {
+    const mockState = {
+      pr: 'test-pr',
+      updatedAt: '2024-01-01',
+      threads: {},
+      nitpicks: {},
+      idMap: { 'abc123': 'PRRT_thread1' }
+    };
+    vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(mockState));
+
+    vi.mocked(prUtils.parsePRInfo).mockReturnValue({
+      owner: 'opt-owner',
+      repo: 'opt-repo',
+      number: 555
+    });
+
+    const context = prepareBatchCommandContext(['abc123'], {
+      owner: 'opt-owner',
+      repo: 'opt-repo',
+      number: 555
+    });
+
+    expect(prUtils.parsePRInfo).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({ owner: 'opt-owner', repo: 'opt-repo', number: 555 })
+    );
+    expect(context.statePath).toContain('opt-owner-opt-repo-555');
+  });
+
+  it('should fall back to auto-detect when no prOptions provided', () => {
+    const mockState = {
+      pr: 'test-pr',
+      updatedAt: '2024-01-01',
+      threads: {},
+      nitpicks: {},
+      idMap: { 'abc123': 'PRRT_thread1' }
+    };
+    vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(mockState));
+
+    prepareBatchCommandContext(['abc123']);
+
+    expect(prUtils.parsePRInfo).toHaveBeenCalledWith(undefined, undefined);
   });
 
   it('should handle all invalid IDs', () => {

@@ -110,6 +110,23 @@ gh-pr-threads clear --owner=owner --repo=repo-name --number=123
 
 This removes the state file, allowing you to restart review processing from scratch.
 
+### Working from Git Worktrees
+
+All batch commands (`mark`, `reply`, `resolve`, `react`) support `--pr` option for explicit PR specification. This is useful when working from git worktrees or directories where auto-detection doesn't work:
+
+```bash
+# Specify PR explicitly with --pr
+gh-pr-threads resolve abc123 --pr https://github.com/owner/repo/pull/123
+gh-pr-threads mark done abc123 --pr https://github.com/owner/repo/pull/123
+gh-pr-threads reply "Fixed" abc123 --pr https://github.com/owner/repo/pull/123
+gh-pr-threads react 👍 abc123 --pr https://github.com/owner/repo/pull/123
+
+# Or use --owner/--repo/--number
+gh-pr-threads resolve abc123 --owner owner --repo repo --number 123
+```
+
+If `--pr` is not provided, the tool auto-detects the PR from the current git repository.
+
 ### Mark Command
 
 Mark threads or nitpicks with a status:

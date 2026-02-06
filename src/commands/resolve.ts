@@ -5,15 +5,17 @@ import {
   prepareThreadCommandContext,
   reportBatchResults,
   markSuccessfulItems,
-  type BatchResult
+  type BatchResult,
+  type PROptions
 } from './shared.js';
 
 export function runResolveCommand(
   ids: string[],
   reply?: string,
-  markAs?: 'done' | 'skip' | 'later'
+  markAs?: 'done' | 'skip' | 'later',
+  prOptions?: PROptions
 ): void {
-  const { context, threads, nonThreads } = prepareThreadCommandContext(ids);
+  const { context, threads, nonThreads } = prepareThreadCommandContext(ids, prOptions);
 
   const result: BatchResult = { successful: [], failed: [] };
 

@@ -2,8 +2,15 @@
  * Shared utilities for command implementations
  */
 import { getStatePath, loadState, saveState, markItem, clearMark, resolveId } from '../state/manager.js';
-import { detectPR } from '../utils/pr.js';
+import { parsePRInfo } from '../utils/pr.js';
 import type { State } from '../types.js';
+
+export interface PROptions {
+  pr?: string;
+  owner?: string;
+  repo?: string;
+  number?: number;
+}
 
 export interface BatchCommandContext {
   state: State;
@@ -20,8 +27,8 @@ export interface BatchResult {
 /**
  * Prepares batch command context by loading state and resolving all short IDs
  */
-export function prepareBatchCommandContext(shortIds: string[]): BatchCommandContext {
-  const pr = detectPR();
+export function prepareBatchCommandContext(shortIds: string[], prOptions?: PROptions): BatchCommandContext {
+  const pr = parsePRInfo(prOptions?.pr, prOptions);
   const statePath = getStatePath(pr.owner, pr.repo, pr.number);
   const state = loadState(statePath);
 
@@ -156,12 +163,12 @@ export function validateThreadsOnly(
  * Prepares and validates thread-only context for commands
  * Combines prepareBatchCommandContext, validateBatchContext, filterThreadsOnly, and validateThreadsOnly
  */
-export function prepareThreadCommandContext(shortIds: string[]): {
+export function prepareThreadCommandContext(shortIds: string[], prOptions?: PROptions): {
   context: BatchCommandContext;
   threads: Map<string, string>;
   nonThreads: string[];
 } {
-  const context = prepareBatchCommandContext(shortIds);
+  const context = prepareBatchCommandContext(shortIds, prOptions);
   validateBatchContext(context);
   
   const { threads, nonThreads } = filterThreadsOnly(context);
