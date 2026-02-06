@@ -860,8 +860,8 @@ export function formatPlainOutput(options: FormatPlainOutputOptions): string {
       lines.push(separator);
       
       const fileStats = colors.dim(` (${colors.greenBright(`+${group.additions}`)} ${colors.yellow(`-${group.deletions}`)})`);
-      const fileIcon = useEmoji ? getFileIcon(group.path) : '📁';
-      lines.push(`  ${fileIcon} ${colors.bold(group.path)}${fileStats}`);
+      const fileIcon = useEmoji ? `${getFileIcon(group.path)} ` : '';
+      lines.push(`  ${fileIcon}${colors.bold(group.path)}${fileStats}`);
       
       lines.push(separator);
       lines.push('');
