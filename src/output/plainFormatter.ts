@@ -115,7 +115,7 @@ function getFileIcon(filePath: string): string {
   const ext = fileName.split('.').pop()?.toLowerCase();
 
   // Special files (check filename first)
-  if (fileName.startsWith('dockerfile')) return '🐳';
+  if (fileName === 'dockerfile' || fileName.startsWith('dockerfile.') || fileName.endsWith('.dockerfile')) return '🐳';
 
   // Lock files - check specific names with non-.lock extensions first
   if (
