@@ -6,6 +6,9 @@ dist/
 *.tsbuildinfo
 .serena/
 
+# Git worktrees
+.worktrees/
+
 # Claude plans and local AI files
 .claude/
 
