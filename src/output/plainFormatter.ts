@@ -697,7 +697,7 @@ function formatNitpick(nitpick: Nitpick, indent: string, prAuthor: string, prOwn
   // Nitpick header with ID and location
   const nitpickId = shortId(nitpick.id);
   const line = parseInt(nitpick.line, 10);
-  const location = line ? `${filePath}:${line}` : filePath;
+  const location = Number.isNaN(line) ? filePath : `${filePath}:${line}`;
   const header = `🤖 ${colors.bold(`[${nitpickId}]`)} at ${colors.dim(location)}`;
   lines.push(`${indent}${header}`);
 
