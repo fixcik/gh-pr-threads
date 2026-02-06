@@ -123,6 +123,8 @@ export async function main(): Promise<void> {
     if (error instanceof Error) {
       console.error(`Error: ${error.message}`);
       debug('Stack trace:', error.stack);
+    } else {
+      console.error(`Error: ${String(error)}`);
     }
     process.exit(1);
   }
