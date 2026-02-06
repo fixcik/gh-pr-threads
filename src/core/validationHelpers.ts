@@ -12,10 +12,18 @@ export interface ThreadIdValidationContext {
  * Exits with error if validation fails
  */
 export function validateThreadId(ctx: ThreadIdValidationContext): void {
-  if (!ctx.threadId || !ctx.resolvedThreadId || ctx.threadId !== ctx.resolvedThreadId) {
+  // No thread ID provided - nothing to validate
+  if (!ctx.threadId) {
     return;
   }
 
+  // Thread ID was resolved to a different value (found in state) - valid
+  if (ctx.resolvedThreadId && ctx.threadId !== ctx.resolvedThreadId) {
+    return;
+  }
+
+  // Thread ID was not found in state - check if it's a valid format
+  // (GraphQL ID or path:line format that can be used directly)
   const looksLikePath = ctx.threadId.includes(':') && ctx.threadId.includes('/');
   const looksLikeGraphql = /^PRR[CT]_/.test(ctx.threadId);
 
