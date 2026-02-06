@@ -2,7 +2,8 @@ import {
   prepareBatchCommandContext,
   markBatchAndSave,
   clearBatchAndSave,
-  reportBatchResults
+  reportBatchResults,
+  type PROptions
 } from './shared.js';
 
 export type MarkStatus = 'done' | 'skip' | 'later' | 'clear';
@@ -10,9 +11,10 @@ export type MarkStatus = 'done' | 'skip' | 'later' | 'clear';
 export function runMarkCommand(
   ids: string[],
   status: MarkStatus,
-  note?: string
+  note?: string,
+  prOptions?: PROptions
 ): void {
-  const context = prepareBatchCommandContext(ids);
+  const context = prepareBatchCommandContext(ids, prOptions);
 
   // Check if all IDs are invalid
   if (context.resolvedIds.size === 0) {

@@ -6,7 +6,8 @@ import {
   prepareBatchCommandContext,
   reportBatchResults,
   validateBatchContext,
-  type BatchResult
+  type BatchResult,
+  type PROptions
 } from './shared.js';
 
 function handleReactionError(error: unknown, shortId: string, result: BatchResult): void {
@@ -29,12 +30,13 @@ function handleReactionError(error: unknown, shortId: string, result: BatchResul
 
 export function runReactCommand(
   ids: string[],
-  reaction: string
+  reaction: string,
+  prOptions?: PROptions
 ): void {
   // Normalize reaction input
   const normalizedReaction = normalizeReaction(reaction);
 
-  const context = prepareBatchCommandContext(ids);
+  const context = prepareBatchCommandContext(ids, prOptions);
 
   // Validate IDs
   validateBatchContext(context);

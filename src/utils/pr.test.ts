@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { detectPR } from './pr.js';
+import { detectPR, parsePRInfo } from './pr.js';
 import * as childProcess from 'child_process';
 
 // Mock child_process module
@@ -104,5 +104,62 @@ describe('detectPR', () => {
       repo: 'my-repo_test',
       number: 42
     });
+  });
+});
+
+describe('parsePRInfo', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should parse PR info from URL', () => {
+    const result = parsePRInfo('https://github.com/owner/repo/pull/42');
+    expect(result).toEqual({ owner: 'owner', repo: 'repo', number: 42 });
+  });
+
+  it('should use owner/repo/number options', () => {
+    const result = parsePRInfo(undefined, { owner: 'o', repo: 'r', number: 1 });
+    expect(result).toEqual({ owner: 'o', repo: 'r', number: 1 });
+  });
+
+  it('should prefer URL over options when both provided', () => {
+    const result = parsePRInfo(
+      'https://github.com/url-owner/url-repo/pull/99',
+      { owner: 'opt-owner', repo: 'opt-repo', number: 1 }
+    );
+    expect(result).toEqual({ owner: 'url-owner', repo: 'url-repo', number: 99 });
+  });
+
+  it('should fall back to auto-detect when no args', () => {
+    const mockOutput = JSON.stringify({
+      number: 10,
+      url: 'https://github.com/a/b/pull/10'
+    });
+    vi.mocked(childProcess.execSync).mockReturnValue(Buffer.from(mockOutput));
+
+    const result = parsePRInfo();
+    expect(result).toEqual({ owner: 'a', repo: 'b', number: 10 });
+  });
+
+  it('should fall back to auto-detect when partial options provided', () => {
+    const mockOutput = JSON.stringify({
+      number: 10,
+      url: 'https://github.com/a/b/pull/10'
+    });
+    vi.mocked(childProcess.execSync).mockReturnValue(Buffer.from(mockOutput));
+
+    const result = parsePRInfo(undefined, { owner: 'partial' });
+    expect(result).toEqual({ owner: 'a', repo: 'b', number: 10 });
+  });
+
+  it('should throw when auto-detect fails and no URL/options', () => {
+    vi.mocked(childProcess.execSync).mockImplementation(() => {
+      throw new Error('not a git repository');
+    });
+    expect(() => parsePRInfo()).toThrow(/Could not detect PR/);
+  });
+
+  it('should throw on invalid URL', () => {
+    expect(() => parsePRInfo('https://example.com/not-github')).toThrow(/Invalid PR URL/);
   });
 });
