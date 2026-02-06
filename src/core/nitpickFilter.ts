@@ -16,7 +16,7 @@ function parseLineRange(lineStr: string): LineRange | null {
   if (Number.isNaN(start)) {
     return null;
   }
-  return { start, end: end || start };
+  return { start, end: Number.isNaN(end) ? start : end };
 }
 
 function rangesOverlap(range1: LineRange, range2: LineRange): boolean {

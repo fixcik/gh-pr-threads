@@ -4,7 +4,7 @@ import type { ProcessedThread, BotSummary, Thread } from '../types.js';
 import type { PRMetadata } from './dataFetcher.js';
 
 export interface OutputOptions {
-  format: string;
+  format: 'json' | 'plain';
   prMeta: PRMetadata;
   statePath: string;
   processedThreads: ProcessedThread[];

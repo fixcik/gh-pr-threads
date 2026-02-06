@@ -707,9 +707,10 @@ function formatNitpick(nitpick: Nitpick, indent: string, prAuthor: string, prOwn
 
   lines.push('');
 
+  // Nitpicks are extracted from CodeRabbit bot comments
   const author = 'coderabbitai';
   const userColor = getUserColor(author);
-  const authorDisplay = formatAuthor(author, prAuthor, prOwner, true); // true = bot
+  const authorDisplay = formatAuthor(author, prAuthor, prOwner, true);
   lines.push(`${indent}${userColor(authorDisplay)} ${colors.dim('[nitpick]')}:`);
 
   const { lines: bodyLines } = formatCommentBody(nitpick.content, indent, filePath);
