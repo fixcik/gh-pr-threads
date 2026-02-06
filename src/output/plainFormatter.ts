@@ -108,6 +108,40 @@ interface FileGroup {
 }
 
 /**
+ * Maps file extension to an emoji icon
+ */
+function getFileIcon(filePath: string): string {
+  const fileName = filePath.split('/').pop()?.toLowerCase() || '';
+  const ext = fileName.split('.').pop()?.toLowerCase();
+
+  // Special files (check filename first)
+  if (fileName.startsWith('dockerfile')) return '🐳';
+  if (ext === 'lock') return '🔒';
+
+  // Extension mapping
+  const iconMap: Record<string, string> = {
+    ts: '🔷', tsx: '🔷',
+    js: '🟡', jsx: '🟡',
+    py: '🐍',
+    rb: '💎',
+    go: '🔹',
+    rs: '🦀',
+    java: '☕', kt: '☕',
+    c: '⚙️', cpp: '⚙️', h: '⚙️',
+    json: '📋',
+    yaml: '📋', yml: '📋',
+    toml: '📋',
+    md: '📝',
+    html: '🌐',
+    css: '🎨', scss: '🎨', sass: '🎨',
+    sh: '🐚', bash: '🐚',
+    sql: '🗄️'
+  };
+
+  return iconMap[ext || ''] || '📄';
+}
+
+/**
  * Maps file extension to highlight.js language identifier
  */
 function getLanguageFromPath(filePath: string): string {
@@ -565,7 +599,18 @@ function formatThread(thread: ProcessedThread, indent: string, prAuthor: string,
   // Thread header with ID and location
   const threadId = shortId(thread.thread_id);
   const location = thread.line !== null ? `${filePath}:${thread.line}` : filePath;
-  const header = `💬 ${colors.bold(`[${threadId}]`)} at ${colors.dim(location)}`;
+
+  // Build status badges
+  const statusBadges: string[] = [];
+  if (thread.isResolved) {
+    statusBadges.push(colors.dim('(resolved)'));
+  }
+  if (thread.isOutdated) {
+    statusBadges.push(colors.dim('(outdated)'));
+  }
+  const statusSuffix = statusBadges.length > 0 ? ' ' + statusBadges.join(' ') : '';
+
+  const header = `💬 ${colors.bold(`[${threadId}]`)} at ${colors.dim(location)}${statusSuffix}`;
   lines.push(`${indent}${header}`);
 
   // URL right after header
@@ -805,7 +850,7 @@ export function formatPlainOutput(options: FormatPlainOutputOptions): string {
       lines.push(separator);
       
       const fileStats = colors.dim(` (${colors.greenBright(`+${group.additions}`)} ${colors.yellow(`-${group.deletions}`)})`);
-      lines.push(`  📁 ${colors.bold(group.path)}${fileStats}`);
+      lines.push(`  ${getFileIcon(group.path)} ${colors.bold(group.path)}${fileStats}`);
       
       lines.push(separator);
       lines.push('');
