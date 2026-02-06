@@ -116,7 +116,16 @@ function getFileIcon(filePath: string): string {
 
   // Special files (check filename first)
   if (fileName.startsWith('dockerfile')) return '🐳';
-  if (ext === 'lock') return '🔒';
+
+  // Lock files - check specific names with non-.lock extensions first
+  if (
+    fileName === 'package-lock.json' ||
+    fileName === 'npm-shrinkwrap.json' ||
+    fileName === 'pnpm-lock.yaml' ||
+    fileName === 'pnpm-lock.yml'
+  ) return '🔒';
+  // Then check for .lock extension (catches yarn.lock, Cargo.lock, etc.)
+  if (fileName.endsWith('.lock')) return '🔒';
 
   // Extension mapping
   const iconMap: Record<string, string> = {
@@ -773,6 +782,7 @@ export interface FormatPlainOutputOptions {
 export function formatPlainOutput(options: FormatPlainOutputOptions): string {
   const { prMeta, processedThreads, botSummaries, allThreads, filter } = options;
   const lines: string[] = [];
+  const useEmoji = supportsEmoji();
 
   // Header
   const separator = '═'.repeat(getTerminalWidth());
@@ -850,7 +860,8 @@ export function formatPlainOutput(options: FormatPlainOutputOptions): string {
       lines.push(separator);
       
       const fileStats = colors.dim(` (${colors.greenBright(`+${group.additions}`)} ${colors.yellow(`-${group.deletions}`)})`);
-      lines.push(`  ${getFileIcon(group.path)} ${colors.bold(group.path)}${fileStats}`);
+      const fileIcon = useEmoji ? getFileIcon(group.path) : '📁';
+      lines.push(`  ${fileIcon} ${colors.bold(group.path)}${fileStats}`);
       
       lines.push(separator);
       lines.push('');
