@@ -2,6 +2,7 @@ import Debug from 'debug';
 import { fetchAllThreadComments } from '../github/fetcher.js';
 import { cleanCommentBody } from '../parsers/comments.js';
 import { THREAD_STATUS } from './constants.js';
+import { isBot } from './botDetector.js';
 import type { Thread, ProcessedThread, State, ThreadComment } from '../types.js';
 
 const debugTiming = Debug('gh-pr-threads:timing');
@@ -58,7 +59,7 @@ export async function processThreads(options: ProcessThreadsOptions): Promise<Pr
       comments: comments.map(c => ({
         id: c.id,
         author: c.author.login,
-        isBot: c.author.__typename === 'Bot',
+        isBot: isBot(c.author),
         body: cleanCommentBody(c.body),
         url: c.url,
         createdAt: c.createdAt,

@@ -15,9 +15,11 @@ import { outputResults } from './outputHelpers.js';
 const debug = Debug('gh-pr-threads');
 const debugTiming = Debug('gh-pr-threads:timing');
 
-export async function main() {
+export async function main(): Promise<void> {
   const startTime = Date.now();
-  const args = parseCliArgs();
+
+  try {
+    const args = parseCliArgs();
 
   // parseCliArgs() calls program.parse() which handles subcommands.
   // Subcommands call process.exit(), so if we reach here, it's the default fetch command.
@@ -117,4 +119,11 @@ export async function main() {
     allThreads: prData.threads,
     filter
   });
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error(`Error: ${error.message}`);
+      debug('Stack trace:', error.stack);
+    }
+    process.exit(1);
+  }
 }
